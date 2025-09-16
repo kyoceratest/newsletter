@@ -208,16 +208,6 @@ class NewsletterEditor {
             console.error('historyBtn not found');
         }
 
-        // Preview button: open preview.html in a new tab without altering existing UI/logic
-        const previewBtn = document.getElementById('previewBtn');
-        if (previewBtn) {
-            previewBtn.addEventListener('click', () => {
-                window.open('preview.html', '_blank');
-            });
-        } else {
-            console.error('previewBtn not found');
-        }
-
         // Rich text toolbar events
         this.setupRichTextToolbar();
 
@@ -3026,8 +3016,836 @@ class NewsletterEditor {
             const offset = y - box.top - box.height / 2;
             
             if (offset < 0 && offset > closest.offset) {
-                return { offset, element: child };
+                return { offset: offset, element: child };
+            } else {
+                return closest;
             }
-            return closest;
-        }, { offset: Number.NEGATIVE_INFINITY, element: null }).element;
+        }, { offset: Number.NEGATIVE_INFINITY }).element;
     }
+
+    addImageToColumn(file, targetContainer) {
+        const handleLoaded = (dataUrl) => {
+            // Create image container like gallery
+            const imageContainer = document.createElement('div');
+            imageContainer.className = 'column-image-container';
+            imageContainer.style.cssText = 'position: relative; border-radius: 8px; overflow: hidden; cursor: pointer; width: 100%; height: auto; margin: 0; padding: 0;';
+            
+            // Create image element
+            const img = document.createElement('img');
+            img.src = dataUrl;
+            img.style.cssText = 'width: 100%; height: auto; max-height: 400px; object-fit: cover; display: block; border-radius: 0; margin: 0; padding: 0;';
+            img.alt = file.name;
+            
+            // Create overlay with controls like gallery
+            const overlay = document.createElement('div');
+            overlay.className = 'image-overlay';
+            overlay.style.cssText = `
+                position: absolute;
+                top: 0;
+                left: 0;
+                right: 0;
+                bottom: 0;
+                background: rgba(0,0,0,0.7);
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                opacity: 0;
+                transition: opacity 0.3s ease;
+            `;
+            
+            // Create delete button like gallery
+            const deleteBtn = document.createElement('button');
+            deleteBtn.innerHTML = '<i class="fas fa-trash"></i>';
+            deleteBtn.className = 'gallery-control-btn';
+            deleteBtn.title = 'Supprimer l\'image';
+            deleteBtn.style.cssText = `
+                background: #dc3545;
+                color: white;
+                border: none;
+                padding: 10px;
+                border-radius: 50%;
+                cursor: pointer;
+                font-size: 16px;
+                margin: 5px;
+                transition: background-color 0.3s ease;
+            `;
+            
+            // Create enlarge button like gallery
+            const enlargeBtn = document.createElement('button');
+            enlargeBtn.innerHTML = '<i class="fas fa-expand"></i>';
+            enlargeBtn.className = 'gallery-control-btn';
+            enlargeBtn.title = 'Agrandir l\'image';
+            enlargeBtn.style.cssText = `
+                background: #007bff;
+                color: white;
+                border: none;
+                padding: 10px;
+                border-radius: 50%;
+                cursor: pointer;
+                font-size: 16px;
+                margin: 5px;
+                transition: background-color 0.3s ease;
+            `;
+            
+            // Add buttons to overlay
+            overlay.appendChild(deleteBtn);
+            overlay.appendChild(enlargeBtn);
+            
+            // Add elements to container
+            imageContainer.appendChild(img);
+            imageContainer.appendChild(overlay);
+            
+            // Add hover effects like gallery
+            imageContainer.addEventListener('mouseenter', () => {
+                overlay.style.opacity = '1';
+            });
+            
+            imageContainer.addEventListener('mouseleave', () => {
+                overlay.style.opacity = '0';
+            });
+            
+            // Delete functionality
+            deleteBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                if (confirm('Êtes-vous sûr de vouloir supprimer cette image ?')) {
+                    imageContainer.remove();
+                    this.saveState();
+                }
+            });
+            
+            // Enlarge functionality
+            enlargeBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                // Create modal for enlarged view
+                const modal = document.createElement('div');
+                modal.style.cssText = `
+                    position: fixed;
+                    top: 0;
+                    left: 0;
+                    width: 100%;
+                    height: 100%;
+                    background: rgba(0,0,0,0.9);
+                    display: flex;
+                    align-items: center;
+                    justify-content: center;
+                    z-index: 10000;
+                    cursor: pointer;
+                `;
+                
+                const enlargedImg = document.createElement('img');
+                enlargedImg.src = img.src;
+                enlargedImg.style.cssText = 'max-width: 90%; max-height: 90%; object-fit: contain;';
+                
+                modal.appendChild(enlargedImg);
+                document.body.appendChild(modal);
+                
+                // Close on click
+                modal.addEventListener('click', () => {
+                    document.body.removeChild(modal);
+                });
+            });
+            
+            // Replace placeholder content with image
+            targetContainer.innerHTML = '';
+            targetContainer.appendChild(imageContainer);
+            
+            this.saveState();
+            this.updateLastModified();
+            this.autoSaveToLocalStorage();
+        };
+        this.compressImageFile(file, { maxWidth: 1600, maxHeight: 1200, quality: 0.9 })
+            .then(handleLoaded)
+            .catch(() => {
+                const reader = new FileReader();
+                reader.onload = (e) => handleLoaded(e.target.result);
+                reader.readAsDataURL(file);
+            });
+    }
+
+    showImageModal(src, alt) {
+        // Create modal
+        const modal = document.createElement('div');
+        modal.style.cssText = `
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.9);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            z-index: 10000;
+            cursor: pointer;
+        `;
+        
+        // Create image
+        const img = document.createElement('img');
+        img.src = src;
+        img.alt = alt;
+        img.style.cssText = `
+            max-width: 90%;
+            max-height: 90%;
+            object-fit: contain;
+            border-radius: 8px;
+            cursor: default;
+        `;
+        
+        // Create close button
+        const closeBtn = document.createElement('button');
+        closeBtn.innerHTML = '×';
+        closeBtn.style.cssText = `
+            position: absolute;
+            top: 20px;
+            right: 30px;
+            background: none;
+            border: none;
+            color: white;
+            font-size: 40px;
+            cursor: pointer;
+            z-index: 10001;
+        `;
+        
+        // Close modal events
+        const closeModal = () => {
+            document.body.removeChild(modal);
+        };
+        
+        modal.addEventListener('click', closeModal);
+        closeBtn.addEventListener('click', closeModal);
+        img.addEventListener('click', (e) => e.stopPropagation());
+        
+        modal.appendChild(img);
+        modal.appendChild(closeBtn);
+        document.body.appendChild(modal);
+    }
+
+    insertQuoteSection() {
+        const quoteSection = document.createElement('div');
+        quoteSection.className = 'newsletter-section quote-section';
+        quoteSection.style.cssText = 'margin: 30px 0; padding: 30px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); border-radius: 8px; color: white; position: relative;';
+        
+        quoteSection.innerHTML = `
+            <div style="position: absolute; top: 15px; left: 25px; font-size: 48px; opacity: 0.3;">
+                <i class="fas fa-tags"></i>
+            </div>
+            <blockquote style="margin: 0; padding-left: 60px; font-size: 18px; line-height: 1.6; font-style: italic;">
+                <p contenteditable="true" style="margin-bottom: 20px; color: white;">Mettez en avant votre promotion ici. Décrivez l'offre, les dates et les conditions principales.</p>
+            </blockquote>
+            <footer style="text-align: right; margin-top: 20px; padding-top: 15px; border-top: 1px solid rgba(255,255,255,0.3);">
+                <p contenteditable="true" style="color: rgba(255,255,255,0.9); font-size: 16px;">— Conditions</p>
+            </footer>
+        `;
+        
+        this.insertElementAtCursor(quoteSection);
+        this.saveState();
+        document.getElementById('sectionOptions').style.display = 'none';
+    }
+
+    insertCTASection() {
+        const ctaSection = document.createElement('div');
+        ctaSection.className = 'newsletter-section cta-section';
+        ctaSection.style.cssText = 'margin: 30px 0; padding: 40px; background: linear-gradient(135deg, #ff6b6b, #ee5a24); border-radius: 12px; text-align: center; color: white;';
+        
+        ctaSection.innerHTML = `
+            <div style="margin-bottom: 20px;">
+                <i class="fas fa-video" style="font-size: 48px; margin-bottom: 20px; opacity: 0.9;"></i>
+            </div>
+            <h3 contenteditable="true" style="color: white; margin: 0 0 15px 0; font-size: 28px; font-weight: bold;">Participez à nos webinars</h3>
+            <p contenteditable="true" style="color: rgba(255,255,255,0.9); font-size: 18px; margin-bottom: 25px; line-height: 1.6;">Inscrivez-vous pour découvrir nos démonstrations et sessions d'experts en direct.</p>
+            <a href="inscription.html" class="webinar-button" style="display: inline-block !important; background: white !important; color: #ee5a24 !important; padding: 15px 30px !important; border-radius: 50px !important; text-decoration: none !important; font-weight: bold !important; font-size: 16px !important; transition: transform 0.3s ease !important; box-shadow: 0 4px 15px rgba(0,0,0,0.2) !important; border: none !important;">S'inscrire au webinar</a>
+        `;
+        
+        this.insertElementAtCursor(ctaSection);
+        this.saveState();
+        document.getElementById('sectionOptions').style.display = 'none';
+    }
+
+    insertContactSection() {
+        const contactSection = document.createElement('div');
+        contactSection.className = 'newsletter-section contact-section';
+        contactSection.style.cssText = 'margin: 30px 0; padding: 30px; background-color: #f8f9fa; border-radius: 8px; border: 1px solid #e9ecef;';
+        
+        contactSection.innerHTML = `
+            <div style="text-align: center; margin-bottom: 25px;">
+                <i class="fas fa-address-card" style="font-size: 36px; color: #6c757d; margin-bottom: 15px;"></i>
+                <h3 contenteditable="true" style="color: #333; margin: 0; font-size: 24px;">Contactez-nous</h3>
+            </div>
+            <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 20px;">
+                <div style="text-align: center; padding: 20px;">
+                    <i class="fas fa-envelope" style="font-size: 24px; color: #007bff; margin-bottom: 10px;"></i>
+                    <h4 style="margin: 0 0 5px 0; color: #333;">Email</h4>
+                    <p contenteditable="true" style="margin: 0; color: #666;">contact@exemple.com</p>
+                </div>
+                <div style="text-align: center; padding: 20px;">
+                    <i class="fas fa-phone" style="font-size: 24px; color: #28a745; margin-bottom: 10px;"></i>
+                    <h4 style="margin: 0 0 5px 0; color: #333;">Téléphone</h4>
+                    <p contenteditable="true" style="margin: 0; color: #666;">+33 1 23 45 67 89</p>
+                </div>
+                <div style="text-align: center; padding: 20px;">
+                    <i class="fas fa-map-marker-alt" style="font-size: 24px; color: #dc3545; margin-bottom: 10px;"></i>
+                    <h4 style="margin: 0 0 5px 0; color: #333;">Adresse</h4>
+                    <p contenteditable="true" style="margin: 0; color: #666;">123 Rue Exemple<br>75000 Paris, France</p>
+                </div>
+            </div>
+        `;
+        
+        this.insertElementAtCursor(contactSection);
+        this.saveState();
+        document.getElementById('sectionOptions').style.display = 'none';
+    }
+
+    insertTwoColumnSection() {
+        const twoColumnSection = document.createElement('div');
+        twoColumnSection.className = 'newsletter-section two-column-layout syc-item';
+        twoColumnSection.style.cssText = 'display: flex; gap: 20px; margin: 30px 0; padding: 20px; background-color: #f8f9fa; border-radius: 8px;';
+
+        twoColumnSection.innerHTML = `
+            <div class="column" style="flex: 1; background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.05);">
+                <div contenteditable="true">
+                    <h3>Syc Item - Titre 1</h3>
+                    <p>Contenu de l'élément 1. Ajoutez du texte, des images et d'autres éléments ici.</p>
+                </div>
+            </div>
+            <div class="column" style="flex: 1; background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.05);">
+                <div class="image-placeholder" style="border: 2px dashed #ccc; padding: 40px; text-align: center; cursor: pointer; border-radius: 8px;">
+                    <i class="fas fa-image" style="font-size: 24px; color: #6c757d; margin-bottom: 10px;"></i>
+                    <p style="color: #6c757d; margin: 0;">Cliquez pour ajouter une image</p>
+                </div>
+                <div contenteditable="true" style="margin-top: 20px;">
+                    <h3>Syc Item - Titre 2</h3>
+                    <p>Contenu de l'élément 2.</p>
+                </div>
+            </div>
+        `;
+
+        const imagePlaceholder = twoColumnSection.querySelector('.image-placeholder');
+        imagePlaceholder.addEventListener('click', () => {
+            const fileInput = document.createElement('input');
+            fileInput.type = 'file';
+            fileInput.accept = 'image/*';
+            fileInput.style.display = 'none';
+
+            fileInput.onchange = (e) => {
+                const file = e.target.files[0];
+                if (file) {
+                    const reader = new FileReader();
+                    reader.onload = (event) => {
+                        const img = document.createElement('img');
+                        img.src = event.target.result;
+                        img.style.width = '100%';
+                        img.style.borderRadius = '8px';
+                        imagePlaceholder.replaceWith(img);
+                        this.saveState();
+                    };
+                    reader.readAsDataURL(file);
+                }
+            };
+            fileInput.click();
+        });
+
+        this.insertElementAtCursor(twoColumnSection);
+        this.saveState();
+        document.getElementById('sectionOptions').style.display = 'none';
+    }
+
+    insertElementAtCursor(element) {
+        const selection = window.getSelection();
+        const editable = document.getElementById('editableContent');
+        let range = null;
+        if (this.lastMouseRange) {
+            try {
+                const node = this.lastMouseRange.startContainer;
+                const host = node && (node.nodeType === Node.ELEMENT_NODE ? node : node.parentElement);
+                if (host && host.closest && host.closest('#editableContent')) {
+                    range = this.lastMouseRange.cloneRange();
+                }
+            } catch (_) {}
+        }
+        if (!range && selection.rangeCount > 0) {
+            range = selection.getRangeAt(0).cloneRange();
+        }
+        // If range starts at the root container, place after nearest block under pointer
+        if (range && range.startContainer === editable) {
+            // keep as is; getRangeFromPoint already handled before/after logic
+        }
+        if (range) {
+            range.deleteContents();
+            range.insertNode(element);
+            // Ensure there is a place for the caret after the inserted block
+            const spacer = document.createElement('p');
+            spacer.innerHTML = '<br>';
+            if (element.nextSibling) {
+                element.parentNode.insertBefore(spacer, element.nextSibling);
+            } else {
+                element.parentNode.appendChild(spacer);
+            }
+            // Move caret to spacer (outside the new section)
+            const newRange = document.createRange();
+            newRange.selectNodeContents(spacer);
+            newRange.collapse(true);
+            selection.removeAllRanges();
+            selection.addRange(newRange);
+            // Reset last mouse range to avoid snapping back inside
+            this.lastMouseRange = null;
+        } else {
+            // Append at end when we don't have a good insertion range
+            editable.appendChild(element);
+            const spacer = document.createElement('p');
+            spacer.innerHTML = '<br>';
+            editable.appendChild(spacer);
+            const newRange = document.createRange();
+            newRange.selectNodeContents(spacer);
+            newRange.collapse(true);
+            selection.removeAllRanges();
+            selection.addRange(newRange);
+            this.lastMouseRange = null;
+        }
+    }
+
+    insertHTMLAtCursor(html) {
+        const selection = window.getSelection();
+        if (selection.rangeCount > 0) {
+            const range = selection.getRangeAt(0);
+            range.deleteContents();
+            const div = document.createElement('div');
+            div.innerHTML = html;
+            const fragment = document.createDocumentFragment();
+            while (div.firstChild) {
+                fragment.appendChild(div.firstChild);
+            }
+            range.insertNode(fragment);
+        } else {
+            document.getElementById('editableContent').innerHTML += html;
+        }
+    }
+
+    saveState() {
+        // Create a temporary div to manipulate the content
+        const tempDiv = document.createElement('div');
+        tempDiv.innerHTML = document.getElementById('editableContent').innerHTML;
+        
+        // Remove all add buttons from the gallery sections before saving
+        const gallerySections = tempDiv.querySelectorAll('.gallery-section');
+        gallerySections.forEach(section => {
+            const addButton = section.querySelector('.add-image-placeholder');
+            if (addButton) {
+                addButton.remove();
+            }
+            const addMoreBtn = section.querySelector('.add-more-btn');
+            if (addMoreBtn) {
+                addMoreBtn.remove();
+            }
+            // Also remove the file input
+            const fileInput = section.querySelector('.gallery-upload');
+            if (fileInput) {
+                fileInput.remove();
+            }
+        });
+        
+        const content = tempDiv.innerHTML;
+        
+        // Remove future history if we're not at the end
+        if (this.currentHistoryIndex < this.history.length - 1) {
+            this.history = this.history.slice(0, this.currentHistoryIndex + 1);
+        }
+        
+        // Add new state
+        this.history.push(content);
+        this.currentHistoryIndex++;
+        
+        // Limit history size
+        if (this.history.length > this.maxHistorySize) {
+            this.history.shift();
+            this.currentHistoryIndex--;
+        }
+    }
+
+    // Cleans editor-only markup and converts blob: media to persistent data URLs
+    async sanitizeForExport(container) {
+        // Remove editor-only wrappers/buttons
+        container.querySelectorAll('.image-wrapper').forEach(wrapper => {
+            const img = wrapper.querySelector('img');
+            if (img) {
+                wrapper.replaceWith(img);
+            } else {
+                wrapper.remove();
+            }
+        });
+        container.querySelectorAll('.image-delete-btn, .crop-overlay').forEach(el => el.remove());
+
+        // Remove contenteditable attributes
+        container.querySelectorAll('[contenteditable]')
+            .forEach(el => el.removeAttribute('contenteditable'));
+
+        // Convert blob: URLs on img/video/source to data URLs, so saved file doesn't depend on runtime blobs
+        const mediaNodes = Array.from(container.querySelectorAll('img, video, source'));
+        for (const node of mediaNodes) {
+            const srcAttr = node.tagName === 'SOURCE' ? 'src' : 'src';
+            const src = node.getAttribute(srcAttr);
+            if (!src || !src.startsWith('blob:')) continue;
+            try {
+                const fetched = await fetch(src);
+                if (!fetched.ok) throw new Error('HTTP ' + fetched.status);
+                const blob = await fetched.blob();
+                const dataUrl = await new Promise((resolve, reject) => {
+                    const reader = new FileReader();
+                    reader.onload = () => resolve(reader.result);
+                    reader.onerror = reject;
+                    reader.readAsDataURL(blob);
+                });
+                node.setAttribute(srcAttr, dataUrl);
+            } catch (err) {
+                console.warn('Failed to inline blob media, removing src to avoid 404:', src, err);
+                node.removeAttribute(srcAttr);
+            }
+        }
+    }
+
+    undo() {
+        if (this.currentHistoryIndex > 0) {
+            this.currentHistoryIndex--;
+            document.getElementById('editableContent').innerHTML = this.history[this.currentHistoryIndex];
+            this.updateLastModified();
+        }
+    }
+
+    redo() {
+        if (this.currentHistoryIndex < this.history.length - 1) {
+            this.currentHistoryIndex++;
+            document.getElementById('editableContent').innerHTML = this.history[this.currentHistoryIndex];
+            this.updateLastModified();
+        }
+    }
+
+    refresh() {
+        location.reload();
+    }
+
+    clear() {
+        if (confirm('Êtes-vous sûr de vouloir effacer tout le contenu ?')) {
+            document.getElementById('editableContent').innerHTML = '';
+            this.saveState();
+            this.updateLastModified();
+        }
+    }
+
+    async save() {
+        try {
+            console.log('Save method called');
+            const fileName = 'newsletter';
+            
+            // Create a temporary div to manipulate the content
+            const tempDiv = document.createElement('div');
+            tempDiv.innerHTML = document.getElementById('editableContent').innerHTML;
+            console.log('Content extracted for saving');
+        
+        // Remove all add buttons from the gallery sections before saving
+        const gallerySections = tempDiv.querySelectorAll('.gallery-section');
+        gallerySections.forEach(section => {
+            const addButton = section.querySelector('.add-image-placeholder');
+            if (addButton) {
+                addButton.remove();
+            }
+            const addMoreBtn = section.querySelector('.add-more-btn');
+            if (addMoreBtn) {
+                addMoreBtn.remove();
+            }
+            // Also remove the file input
+            const fileInput = section.querySelector('.gallery-upload');
+            if (fileInput) {
+                fileInput.remove();
+            }
+        });
+        
+        const content = tempDiv.innerHTML;
+        
+        // Create full HTML document
+        const fullHTML = `<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>${fileName}</title>
+    <link rel="stylesheet" href="styles.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+</head>
+<body>
+    <div class="newsletter-content">
+        ${content}
+    </div>
+</body>
+</html>`;
+        
+        // Try to use the File System Access API (modern browsers)
+        if ('showSaveFilePicker' in window) {
+            try {
+                const fileHandle = await window.showSaveFilePicker({
+                    suggestedName: fileName + '.html',
+                    types: [{
+                        description: 'HTML Files',
+                        accept: {
+                            'text/html': ['.html']
+                        }
+                    }]
+                });
+                
+                const writable = await fileHandle.createWritable();
+                await writable.write(fullHTML);
+                await writable.close();
+                
+                // Save to history
+                this.saveToHistory(fileName, content);
+                
+                // Show success message
+                alert('Newsletter sauvegardée avec succès !');
+                return;
+            } catch (err) {
+                // User cancelled the save dialog or another error occurred
+                console.log('File saving was cancelled or failed:', err);
+                return;
+            }
+        }
+        
+        // Fallback for older browsers
+        // Create and trigger download with save dialog
+        const blob = new Blob([fullHTML], { type: 'text/html' });
+        const url = URL.createObjectURL(blob);
+        
+        // Create a temporary link element
+        const a = document.createElement('a');
+        a.style.display = 'none';
+        a.href = url;
+        a.download = fileName + '.html';
+        
+        // Add to DOM, click and remove
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        
+        // Clean up the URL object
+        URL.revokeObjectURL(url);
+        
+        // Save to history
+        this.saveToHistory(fileName, content);
+        
+        // Show success message
+        alert('Newsletter sauvegardée avec succès !');
+        console.log('Save completed successfully');
+        } catch (error) {
+            console.error('Error during save:', error);
+            alert('Erreur lors de la sauvegarde: ' + error.message);
+        }
+    }
+
+    saveToHistory(fileName, content) {
+        const historyItem = {
+            name: 'newsletter',
+            content: content,
+            date: new Date().toLocaleString('fr-FR'),
+            preview: content.substring(0, 100) + '...'
+        };
+        
+        let history = JSON.parse(localStorage.getItem('newsletterHistory') || '[]');
+        history.unshift(historyItem);
+        
+        // Keep only last 20 items
+        if (history.length > 20) {
+            history = history.slice(0, 20);
+        }
+        
+        localStorage.setItem('newsletterHistory', JSON.stringify(history));
+    }
+
+    showHistory() {
+        console.log('showHistory method called');
+        
+        try {
+            let history = JSON.parse(localStorage.getItem('newsletterHistory') || '[]');
+            console.log('Raw history data:', history);
+            
+            // Clean up invalid entries
+            history = history.filter(item => {
+                return item && 
+                       typeof item === 'object' && 
+                       item.name && 
+                       item.content && 
+                       typeof item.name === 'string' && 
+                       typeof item.content === 'string';
+            });
+            
+            // Save cleaned history back to localStorage
+            if (history.length !== JSON.parse(localStorage.getItem('newsletterHistory') || '[]').length) {
+                localStorage.setItem('newsletterHistory', JSON.stringify(history));
+                console.log('Cleaned up invalid history entries');
+            }
+            
+            console.log('Cleaned history data:', history);
+            
+            const historyList = document.getElementById('historyList');
+            console.log('History list element:', historyList);
+            
+            if (!historyList) {
+                throw new Error('historyList element not found');
+            }
+            
+            if (history.length === 0) {
+                historyList.innerHTML = '<p style="text-align: center; color: #666;">Aucun historique disponible</p>';
+            } else {
+                historyList.innerHTML = history.map((item, index) => {
+                    // Check if item has required properties
+                    if (!item || !item.name || !item.content) {
+                        console.warn('Invalid history item:', item);
+                        return ''; // Skip invalid items
+                    }
+                    
+                    // Escape content for safe HTML insertion
+                    const escapedContent = item.content.replace(/'/g, "\\'").replace(/"/g, '\\"').replace(/\n/g, '\\n').replace(/\r/g, '\\r');
+                    const itemName = item.name || 'Sans nom';
+                    const itemDate = item.date || 'Date inconnue';
+                    const itemPreview = item.preview || 'Pas d\'aperçu disponible';
+                    
+                    return `
+                        <div class="history-item" style="border: 1px solid #ddd; border-radius: 8px; padding: 15px; margin-bottom: 10px; cursor: pointer; transition: background-color 0.3s ease;" onclick="editor.loadFromHistory('${itemName}', '${escapedContent}')">
+                            <h4 style="margin: 0 0 5px 0; color: #333;">${itemName}</h4>
+                            <p style="margin: 0 0 5px 0; color: #666; font-size: 14px;">${itemDate}</p>
+                            <p style="margin: 0; color: #888; font-size: 12px;">${itemPreview}</p>
+                        </div>
+                    `;
+                }).filter(item => item !== '').join(''); // Remove empty items
+            }
+            
+            const modal = document.getElementById('historyModal');
+            console.log('History modal element:', modal);
+            
+            if (!modal) {
+                throw new Error('historyModal element not found');
+            }
+            
+            modal.style.display = 'block';
+            console.log('Modal display set to block');
+            
+        } catch (error) {
+            console.error('Error in showHistory:', error);
+            alert('Erreur lors de l\'affichage de l\'historique: ' + error.message);
+        }
+    }
+
+    loadFromHistory(name, content) {
+        if (confirm(`Charger "${name}" ? Le contenu actuel sera remplacé.`)) {
+            // Unescape the content
+            const unescapedContent = content.replace(/\\'/g, "'").replace(/\\"/g, '"').replace(/\\n/g, '\n').replace(/\\r/g, '\r');
+            document.getElementById('editableContent').innerHTML = unescapedContent;
+            this.saveState();
+            this.updateLastModified();
+            this.autoSaveToLocalStorage(); // Auto-save the restored content
+            document.getElementById('historyModal').style.display = 'none';
+            console.log('Content loaded and restored from history:', name);
+        }
+    }
+
+    updateLastModified() {
+        document.getElementById('lastUpdate').textContent = new Date().toLocaleString('fr-FR');
+    }
+
+    // Restore function to recover from localStorage if page is refreshed
+    restoreFromLocalStorage() {
+        try {
+            // Only restore if versions match
+            const lsVersion = localStorage.getItem('currentNewsletterVersion');
+            const ssVersion = sessionStorage.getItem('currentNewsletterVersion');
+            let savedContent = null;
+            if (lsVersion === this.storageVersion) {
+                savedContent = localStorage.getItem('currentNewsletterContent');
+            }
+            if (!savedContent && ssVersion === this.storageVersion) {
+                savedContent = sessionStorage.getItem('currentNewsletterContentSession');
+                if (savedContent) this._autosaveUsingSession = true;
+            }
+            if (!savedContent) {
+                // Clear incompatible old autosave to prevent future overwrites
+                localStorage.removeItem('currentNewsletterContent');
+                sessionStorage.removeItem('currentNewsletterContentSession');
+                localStorage.removeItem('currentNewsletterVersion');
+                sessionStorage.removeItem('currentNewsletterVersion');
+            }
+            const savedFileName = localStorage.getItem('currentNewsletterFileName');
+            
+            if (savedContent) {
+                document.getElementById('editableContent').innerHTML = savedContent;
+                console.log('Content restored from local/session storage');
+            }
+            
+            // File name functionality removed
+        } catch (error) {
+            console.error('Error restoring from storage:', error);
+        }
+    }
+
+    // Auto-save current content to localStorage with sessionStorage fallback
+    autoSaveToLocalStorage() {
+        const content = document.getElementById('editableContent').innerHTML;
+        if (this._autosaveUsingSession) {
+            try {
+                sessionStorage.setItem('currentNewsletterContentSession', content);
+                sessionStorage.setItem('currentNewsletterVersion', this.storageVersion);
+            } catch (_) {}
+            return;
+        }
+        try {
+            localStorage.setItem('currentNewsletterContent', content);
+            localStorage.setItem('currentNewsletterVersion', this.storageVersion);
+        } catch (error) {
+            const message = (error && (error.name || '')).toString();
+            if (message.includes('QuotaExceededError') || message.includes('QUOTA') || message.includes('NS_ERROR_DOM_QUOTA_REACHED')) {
+                try {
+                    sessionStorage.setItem('currentNewsletterContentSession', content);
+                    sessionStorage.setItem('currentNewsletterVersion', this.storageVersion);
+                    this._autosaveUsingSession = true;
+                    console.info('Autosave switched to sessionStorage due to quota. Manual Save unaffected.');
+                } catch (_) {
+                    console.info('Autosave paused: both localStorage and sessionStorage quotas exceeded. Manual Save still works.');
+                }
+            } else {
+                console.error('Error auto-saving to localStorage:', error);
+            }
+        }
+    }
+
+    // Utility: compress an image File to a DataURL
+    compressImageFile(file, { maxWidth = 1600, maxHeight = 1200, quality = 0.9 } = {}) {
+        return new Promise((resolve, reject) => {
+            try {
+                const img = new Image();
+                const reader = new FileReader();
+                reader.onload = (e) => {
+                    img.onload = () => {
+                        let width = img.width;
+                        let height = img.height;
+                        const ratio = Math.min(maxWidth / width, maxHeight / height, 1);
+                        const canvas = document.createElement('canvas');
+                        canvas.width = Math.round(width * ratio);
+                        canvas.height = Math.round(height * ratio);
+                        const ctx = canvas.getContext('2d');
+                        ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
+                        const mime = file.type && file.type.startsWith('image/') ? (file.type.includes('png') ? 'image/png' : 'image/jpeg') : 'image/jpeg';
+                        const dataUrl = canvas.toDataURL(mime, quality);
+                        resolve(dataUrl);
+                    };
+                    img.onerror = () => reject(new Error('Image load failed'));
+                    img.src = e.target.result;
+                };
+                reader.onerror = () => reject(new Error('File read failed'));
+                reader.readAsDataURL(file);
+            } catch (err) {
+                reject(err);
+            }
+        });
+    }
+}
+
+// Initialize the editor when the page loads
+let editor;
+document.addEventListener('DOMContentLoaded', () => {
+    editor = new NewsletterEditor();
+});

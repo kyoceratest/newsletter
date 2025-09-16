@@ -1217,10 +1217,19 @@ footer.kyocera-footer *,
 /* Responsive Design */
 @media (max-width: 768px) {
     .editor-sidebar {
-        width: 100%;
-        position: relative;
-        top: auto;
-        bottom: auto;
+        width: 80%;
+        max-width: 320px;
+        position: fixed;
+        top: 0;
+        left: 0;
+        bottom: 0;
+        padding-top: 75px; /* account for fixed header */
+        transform: translateX(-100%);
+        transition: transform 0.3s ease;
+        z-index: 1100; /* above header (1000) and overlay (1000) */
+    }
+    .editor-sidebar.active {
+        transform: translateX(0);
     }
     
     .main-content {
@@ -1982,7 +1991,7 @@ body:not(.newsletter-editor) .video-toolbar {
         width: 100%;
         height: 100%;
         background-color: rgba(0,0,0,0.5);
-        z-index: 1000;
+        z-index: 1050;
     }
     
     .sidebar-overlay.active {

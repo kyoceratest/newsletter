@@ -150,9 +150,6 @@
                 <button class="tool-btn" id="historyBtn">
                     <i class="fas fa-history"></i> Historique
                 </button>
-                <button class="tool-btn" id="previewBtn">
-                    <i class="fas fa-eye"></i> Aperçu
-                </button>
             </div>
         </div>
     </div>
@@ -465,6 +462,38 @@
     </div>
 
     <script src="editor.js"></script>
+    <script>
+      // Minimal mobile sidebar toggle
+      document.addEventListener('DOMContentLoaded', function () {
+        const sidebar = document.querySelector('.editor-sidebar');
+        const overlay = document.getElementById('sidebarOverlay');
+        const burger = document.getElementById('sidebarHamburger');
+        if (!sidebar || !overlay || !burger) return;
+
+        const openSidebar = () => {
+          sidebar.classList.add('active');
+          overlay.classList.add('active');
+          document.body.style.overflow = 'hidden';
+        };
+        const closeSidebar = () => {
+          sidebar.classList.remove('active');
+          overlay.classList.remove('active');
+          document.body.style.overflow = '';
+        };
+
+        burger.addEventListener('click', (e) => {
+          e.stopPropagation();
+          const isOpen = sidebar.classList.contains('active');
+          isOpen ? closeSidebar() : openSidebar();
+        });
+
+        overlay.addEventListener('click', closeSidebar);
+
+        document.addEventListener('keydown', (e) => {
+          if (e.key === 'Escape') closeSidebar();
+        });
+      });
+    </script>
 </body>
 </html>
 
