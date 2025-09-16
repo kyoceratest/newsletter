@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Admin — Inscriptions</title>
+  <link rel="stylesheet" href="styles.css" />
+  <style>
+    .admin-container { max-width: 1100px; margin: 100px auto 40px; padding: 20px; }
+    .admin-card { background:#fff; border:1px solid #e0e0e0; border-radius:8px; padding:16px; }
+    .admin-actions { display:flex; gap:12px; align-items:center; margin-bottom:12px; }
+    .kyo-input { padding:10px 12px; border:1px solid #ccc; border-radius:6px; }
+    .kyo-button { display:inline-block; padding:10px 14px; background:#0a9bcd; color:#fff; border:none; border-radius:6px; font-weight:600; cursor:pointer; }
+    .kyo-button.secondary { background:#6c757d; }
+    table { width:100%; border-collapse: collapse; }
+    th, td { padding:10px; border-bottom:1px solid #eee; text-align:left; font-size:14px; }
+    th { background:#f8f9fa; }
+    .tag { display:inline-block; padding:2px 8px; border-radius:999px; font-size:12px; }
+    .tag.green { background:#e6f5ee; color:#157347; }
+    .tag.gray { background:#eef1f4; color:#495057; }
+    .nowrap { white-space: nowrap; }
+  </style>
+</head>
+<body>
+  <header class="kyocera-header"><div class="header-top"><div class="header-logo"><img src="Image/logo.png" alt="Kyocera"/></div></div></header>
+  <main class="admin-container">
+    <h1 class="font-size-26" style="margin-bottom:10px;">Inscriptions</h1>
+    <div class="admin-card">
+      <div class="admin-actions">
+        <select id="filterAttended" class="kyo-input">
+          <option value="">Tous</option>
+          <option value="true">Ayant participé</option>
+          <option value="false">Non participé</option>
+        </select>
+        <input id="search" class="kyo-input" placeholder="Rechercher (nom, email, société)" />
+        <button id="refresh" class="kyo-button">Rafraîchir</button>
+      </div>
+      <div style="overflow:auto;">
+        <table>
+          <thead>
+            <tr>
+              <th>Nom</th>
+              <th>Email</th>
+              <th>Société</th>
+              <th class="nowrap">Ouvertures email</th>
+              <th class="nowrap">Téléchargements</th>
+              <th class="nowrap">Participation</th>
+              <th class="nowrap">Actions</th>
+            </tr>
+          </thead>
+          <tbody id="rows"></tbody>
+        </table>
+      </div>
+    </div>
+  </main>
+  <script>
+    async function fetchRegistrations(attended) {
+      const q = attended === '' ? '' : `?attended=${attended}`;
+      const res = await fetch(`api/registrations.php${q}`);
+      if (!res.ok) throw new Error('Fetch failed');
+      return res.json();
+    }
+
+    async function markAttendance(id, attended) {
+      const res = await fetch('api/attendance.php', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id, attended })
+      });
+      if (!res.ok) throw new Error('Update failed');
+      return res.json();
+    }
+
+    function renderRows(items, term) {
+      const tbody = document.getElementById('rows');
+      tbody.innerHTML = '';
+      const t = (term || '').toLowerCase();
+      items.filter(r => {
+        const s = `${r.firstName||''} ${r.lastName||''} ${r.email||''} ${r.company||''}`.toLowerCase();
+        return !t || s.includes(t);
+      }).forEach(r => {
+        const tr = document.createElement('tr');
+        tr.innerHTML = `
+          <td>${(r.firstName||'') + ' ' + (r.lastName||'')}</td>
+          <td>${r.email||''}</td>
+          <td>${r.company||''}</td>
+          <td class="nowrap">${r.emailOpenCount||0}</td>
+          <td class="nowrap">${r.downloadCount||0}</td>
+          <td class="nowrap">${r.attended ? '<span class="tag green">Oui</span>' : '<span class="tag gray">Non</span>'}</td>
+          <td class="nowrap">
+            <button class="kyo-button secondary" data-id="${r.id}" data-attended="${!r.attended}">${r.attended ? 'Marquer non' : 'Marquer oui'}</button>
+          </td>
+        `;
+        tbody.appendChild(tr);
+      });
+    }
+
+    async function load() {
+      const attended = document.getElementById('filterAttended').value;
+      const list = await fetchRegistrations(attended);
+      renderRows(list, document.getElementById('search').value);
+    }
+
+    document.getElementById('filterAttended').addEventListener('change', load);
+    document.getElementById('refresh').addEventListener('click', load);
+    document.getElementById('search').addEventListener('input', async () => {
+      await load();
+    });
+
+    document.addEventListener('click', async (e) => {
+      const btn = e.target.closest('button[data-id]');
+      if (!btn) return;
+      const id = btn.getAttribute('data-id');
+      const attended = btn.getAttribute('data-attended') === 'true';
+      try {
+        await markAttendance(id, attended);
+        await load();
+      } catch (_) {
+        alert("Échec de la mise à jour de la participation");
+      }
+    });
+
+    load().catch(() => alert('Impossible de charger les inscriptions'));
+  </script>
+</body>
+</html>

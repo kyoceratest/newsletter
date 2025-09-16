@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <title>Téléchargement - Tarif public</title>
+    <link rel="stylesheet" href="login_page/styles/dye-pattern.css">
+    <script src="src/auth.js"></script>
+    <script>
+        checkAccess('Tarif public');
+    </script>
+    <script>
+        if (
+            document.referrer && document.referrer.indexOf(window.location.origin) !== 0
+        ) {
+            alert("Accès direct interdit. Veuillez passer par la page de connexion.");
+            window.location.href = '/login/login_page/index.html';
+        }
+    </script>
+</head>
+<body>
+    <main class="download-main">
+        <h2>Téléchargement -  Tarif public</h1>
+        <div class="download-cards">
+            <div class="download-card">
+                <div class="download-icon pdf"></div>
+                <div class="download-info">
+                    <div class="download-title">Matériel (PDF)</div>
+                    <a href="Tarif_newsletter/public_materiel.pdf" target="_blank" class="download-btn">Télécharger</a>
+                </div>
+            </div>
+            <div class="download-card">
+                <div class="download-icon excel"></div>
+                <div class="download-info">
+                    <div class="download-title">Matériel (Excel)</div>
+                    <a href="Tarif_newsletter/public_materiel.xlsx" target="_blank" class="download-btn">Télécharger</a>
+                </div>
+            </div>
+            <div class="download-card">
+                <div class="download-icon pdf"></div>
+                <div class="download-info">
+                    <div class="download-title">Consommables (PDF)</div>
+                    <a href="Tarif_newsletter/public_consommables.pdf" target="_blank" class="download-btn">Télécharger</a>
+                </div>
+            </div>
+            <div class="download-card">
+                <div class="download-icon excel"></div>
+                <div class="download-info">
+                    <div class="download-title">Consommables (Excel)</div>
+                    <a href="Tarif_newsletter/public_consommables.xlsx" target="_blank" class="download-btn">Télécharger</a>
+                </div>
+            </div>
+        </div>
+    </main>
+</body>
+</html>

@@ -1,0 +1,519 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Comptez sur nous — Juin 2025</title>
+    <link rel="stylesheet" href="styles.css" />
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
+    <link rel="icon" type="image/png" href="Image/logo.png" />
+    <style>
+        /* Remove border of main container only on index page */
+        .content-area { border: none !important; }
+
+        /* Hero image - keep clean + add subtle entrance/hover */
+        .newsletter-hero img {
+          box-shadow: none !important; border: none !important;
+          opacity: 0;
+          animation: fadeInUp 520ms ease-out 60ms forwards;
+          transition: transform 240ms ease;
+        }
+        .newsletter-hero img:hover { transform: scale(1.01); }
+
+        /* Tile layout to match reference */
+        .cards-grid.kyo-tiles { gap: 36px; }
+        .kyo-tile {
+          background: transparent; border: none; box-shadow: none; border-radius: 0;
+          transition: transform 250ms ease, box-shadow 250ms ease;
+          opacity: 0; /* entrance animation */
+          animation: tileIn 520ms ease-out forwards;
+        }
+        .kyo-tiles .kyo-tile:nth-child(1) { animation-delay: 80ms; }
+        .kyo-tiles .kyo-tile:nth-child(2) { animation-delay: 140ms; }
+        .kyo-tiles .kyo-tile:nth-child(3) { animation-delay: 200ms; }
+        .kyo-tile:hover { transform: translateY(-4px); box-shadow: 0 8px 24px rgba(0,0,0,0.08); }
+
+        /* Make the media area square */
+        .kyo-tile-media {
+          display: block;
+          position: relative;
+          width: 100%;
+          aspect-ratio: 1 / 1;
+          background: #fff;
+          overflow: hidden; /* contain image hover scale */
+        }
+        /* Image fits inside the square without cropping */
+        .kyo-tile-media img {
+          position: absolute;
+          inset: 0;
+          width: 100%;
+          height: 100%;
+          object-fit: contain;
+          display: block;
+          border-radius: 0;
+          box-shadow: none;
+          background-color: #fff;
+          transition: transform 350ms ease;
+        }
+        .kyo-tile-media:hover img { transform: scale(1.02); }
+
+        .kyo-tile-plus {
+          position: absolute; right: 0; bottom: 0;
+          width: 72px; height: 72px;
+          background: #12a7cf; color: #fff;
+          display: flex; align-items: center; justify-content: center;
+          font-size: 48px; font-weight: 400; line-height: 1;
+          transition: transform 250ms ease, box-shadow 250ms ease, background-color 200ms ease;
+          box-shadow: 0 4px 12px rgba(18,167,207,0.28);
+        }
+        .kyo-tile-media:hover .kyo-tile-plus { transform: translate(-6px, -6px) scale(1.05); box-shadow: 0 6px 16px rgba(18,167,207,0.35); }
+
+        .kyo-tile-body { padding-top: 18px; }
+        .kyo-tile-body h3 { margin: 0 0 10px; font-size: 1.25rem; line-height: 1.35; }
+        .kyo-tile-body p { margin: 0; color: #333; }
+
+        /* Buttons - subtle motion without changing behavior */
+        .kyo-btn { transition: transform 200ms ease, box-shadow 200ms ease; }
+        .kyo-btn:hover { transform: translateY(-2px); box-shadow: 0 6px 16px rgba(0,0,0,0.12); }
+        .kyo-btn:active { transform: translateY(0); box-shadow: 0 2px 6px rgba(0,0,0,0.10); }
+
+        /* Accessibility: clear focus outlines */
+        a:focus-visible, button:focus-visible { outline: 3px solid #12a7cf; outline-offset: 3px; border-radius: 4px; }
+
+        /* Motion preferences */
+        @media (prefers-reduced-motion: reduce) {
+          * { animation: none !important; transition: none !important; }
+        }
+
+        @media (max-width: 768px) {
+          /* square maintained automatically */
+          .kyo-tile-plus { width: 56px; height: 56px; font-size: 36px; }
+        }
+
+        /* Keyframes */
+        @keyframes fadeInUp {
+          from { opacity: 0; transform: translateY(10px); }
+          to { opacity: 1; transform: translateY(0); }
+        }
+        @keyframes tileIn {
+          from { opacity: 0; transform: translateY(8px); }
+          to { opacity: 1; transform: translateY(0); }
+        }
+    </style>
+</head>
+<body>
+    <!-- Header (same design as index.html) -->
+    <header class="kyocera-header">
+        <!-- Desktop Header -->
+        <div class="header-top desktop-header">
+            <div class="header-logo">
+                <a href="https://www.kyoceradocumentsolutions.fr/fr.html">
+                    <img src="Image/logo.png" />
+                </a>
+                <span class="header-logo-text">KYOCERA Document Solutions</span>
+            </div>
+            <div class="header-lang-account">
+                <a href="https://www.kyoceradocumentsolutions.fr/fr/about-us/contact-us/kyocera-worldwide.html" class="lang-text">
+                    <img src="Image/fr.svg" alt="France" class="flag-icon" />
+                    FR France
+                </a>
+                <a href="https://mykyocera.kyoceradocumentsolutions.fr/fr.html" class="account-text">My Kyocera</a>
+            </div>
+        </div>
+
+        <!-- Mobile Header -->
+        <div class="mobile-header">
+            <div class="mobile-header-top">
+                <div class="header-logo">
+                    <a href="https://www.kyoceradocumentsolutions.fr/fr.html">
+                        <img src="Image/logo.png" />
+                    </a>
+                    <span class="header-logo-text">KYOCERA Document Solutions</span>
+                </div>
+            </div>
+            <div class="mobile-header-bottom">
+                <a href="https://www.kyoceradocumentsolutions.fr/fr/about-us/contact-us/kyocera-worldwide.html" class="mobile-lang-text">
+                    <i class="fas fa-globe"></i>
+                    FR / France
+                </a>
+                <div class="mobile-icons-group">
+                    <a href="https://mykyocera.kyoceradocumentsolutions.fr/fr.html">
+                        <img src="Image/mykyocer.svg" alt="My Kyocera" class="mobile-user-icon" />
+                    </a>
+                    <button class="hamburger mobile-hamburger" id="hamburger">
+                        <span></span>
+                        <span></span>
+                        <span></span>
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <nav class="header-nav" id="headerNav">
+            <ul class="nav-menu">
+                <li><a href="https://www.kyoceradocumentsolutions.fr/fr/smarter-workspaces.html">Espaces de travail intelligents</a></li>
+                <li><a href="https://www.kyoceradocumentsolutions.fr/fr/content-services.html">Business Solutions</a></li>
+                <li><a href="https://www.kyoceradocumentsolutions.fr/fr/products.html">Produits</a></li>
+                <li><a href="https://www.kyoceradocumentsolutions.fr/fr/support.html">Support</a></li>
+                <li><a href="https://www.kyoceradocumentsolutions.fr/fr/about-us.html">Qui sommes-nous</a></li>
+            </ul>
+        </nav>
+
+    </header>
+
+    <!-- Main Content -->
+    <main class="main-content">
+        <div class="content-wrapper">
+            <div class="content-area">
+                <div class="kyo-meta">
+                    <span class="meta">Newsletter — Juin 2025</span>
+                    <span class="kyo-chip">Actualités</span>
+                </div>
+                <h1 class="title-accent">Comptez sur nous — Juin 2025</h1>
+
+                <div class="newsletter-hero">
+                    <a href="newsletter.html?page=1">
+                        <img src="Image/45_PRT_PA3500wx_comb03_front_01.jpg" alt="Comptez sur nous — Juin 2025" />
+                    </a>
+                </div>
+
+                <p class="lead">Bienvenue dans notre édition de juin. Découvrez les temps forts, conseils et ressources pour optimiser vos espaces de travail intelligents.</p>
+
+                <div class="section-divider"></div>
+                <h2>Dans ce numéro</h2>
+                <section class="cards-grid kyo-tiles">
+                    <article class="kyo-tile">
+                        <a class="kyo-tile-media" href="newsletter.html?page=2">
+                            <img src="Image/page1.png" alt="Sommaire" />
+                            <span class="kyo-tile-plus">+</span>
+                        </a>
+                        <div class="kyo-tile-body">
+                            <h3>Sommaire</h3>
+                            <p>L'édito de Benjamin Claus</p>
+                        </div>
+                    </article>
+
+                    <article class="kyo-tile">
+                        <a class="kyo-tile-media" href="newsletter.html?page=3">
+                            <img src="Image/page2.png" alt="Webinar spécial Cloud le 26 juin 2025" />
+                            <span class="kyo-tile-plus">+</span>
+                        </a>
+                        <div class="kyo-tile-body">
+                            <h3>Webinar spécial Cloud le 26 juin 2025</h3>
+                            <p>Comment booster sa performance documentaire grâce au Cloud ?</p>
+                        </div>
+                    </article>
+
+                    <article class="kyo-tile">
+                        <a class="kyo-tile-media" href="newsletter.html?page=4">
+                            <img src="Image/page3.png" alt="Formation commerciale" />
+                            <span class="kyo-tile-plus">+</span>
+                        </a>
+                        <div class="kyo-tile-body">
+                            <h3>Formation commerciale</h3>
+                            <p>Des sessions adaptées à vos besoins</p>
+                        </div>
+                    </article>
+                </section>
+
+                <div class="section-divider"></div>
+
+                <!-- Webinars - Two Columns (Fallback: no upcoming webinars) -->
+                <section class="webinars-two-col">
+                    <div class="webinars-col-left">
+                        <div class="sujette-title">Replays & Alertes</div>
+                        <p class="font-size-14" style="margin: 14px 0 18px;">
+                            Aucun webinar à venir pour le moment. Consultez nos replays et recevez une alerte pour les prochains.
+                        </p>
+                    </div>
+
+                    <div class="webinars-col-right">
+                        <a class="webinar-card" href="contenuWebinars.html">
+                            <div class="webinar-card-media">
+                                <i class="fas fa-circle-play" aria-hidden="true"></i>
+                            </div>
+                            <div class="webinar-card-body">
+                                <h3>Voir tous les replays</h3>
+                                <p class="font-size-14">Accédez aux enregistrements et ressources.</p>
+                            </div>
+                        </a>
+
+                        <a class="webinar-card" href="inscription.html">
+                            <div class="webinar-card-media alt">
+                                <i class="fas fa-bell" aria-hidden="true"></i>
+                            </div>
+                            <div class="webinar-card-body">
+                                <h3>Être averti des prochains webinars</h3>
+                                <p class="font-size-14">Inscrivez-vous pour recevoir une notification.</p>
+                            </div>
+                        </a>
+                    </div>
+                </section>
+            </div>
+        </div>
+    </main>
+
+    <!-- Footer (same design as index.html) -->
+    <footer class="kyocera-footer">
+        <div class="footer-content">
+            <div class="footer-main desktop-footer">
+                <div class="footer-row footer-row-1">
+                    <div class="footer-social-icons">
+                        <a href="https://www.facebook.com/KyoceraDocumentSolutionsFrance/"><img src="Image/facebook.png" alt="Facebook" /></a>
+                        <a href="https://www.linkedin.com/company/kyocera-document-solutions-france/posts/?feedView=all"><img src="Image/linkin.png" alt="LinkedIn" /></a>
+                        <a href="https://www.youtube.com/user/kdfrsas"><img src="Image/video.png" alt="YouTube" /></a>
+                    </div>
+                </div>
+                <div class="footer-row footer-row-2">
+                    <div class="footer-left">
+                        <div class="footer-links">
+                            <a href="https://www.kyoceradocumentsolutions.fr/fr/about-us/contact-us.html">Nous contacter</a>
+                            <a href="https://www.kyoceradocumentsolutions.fr/fr/footer/privacy-and-cookie-centre.html">Utilisation des cookies</a>
+                            <a href="https://www.kyoceradocumentsolutions.fr/fr/footer/data-request.html">Politique de gestion des données personnelles</a>
+                        </div>
+                    </div>
+                    <div class="footer-right">
+                        <div class="footer-copyright">©2025 KYOCERA Document Solutions France S.A.S.</div>
+                    </div>
+                </div>
+                <div class="footer-row footer-row-3">
+                    <div class="footer-left">
+                        <div class="footer-links">
+                            <a href="https://www.kyoceradocumentsolutions.fr/fr/footer/terms-of-use.html">Conditions d'utilisation et restrictions légales</a>
+                            <a href="https://www.kyoceradocumentsolutions.fr/fr/footer/legal-notices.html">Conditions Générales de Vente</a>
+                            <a href="https://www.kyoceradocumentsolutions.fr/fr/gdpr-preferences.html">Gérer vos cookies</a>
+                            <a href="https://www.kyoceradocumentsolutions.fr/fr/about-us/contact-us/press.html">Presse</a>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="footer-main mobile-footer">
+                <div class="mobile-footer-social">
+                    <a href="https://www.facebook.com/kyoceradocumentsolutions"><img src="Image/facebook.png" alt="Facebook" /></a>
+                    <a href="https://www.linkedin.com/company/kyocera-document-solutions"><img src="Image/linkin.png" alt="LinkedIn" /></a>
+                    <a href="https://www.youtube.com/user/kyoceradocumentsolutions"><img src="Image/video.png" alt="YouTube" /></a>
+                </div>
+                <div class="mobile-footer-links">
+                    <a href="https://www.kyoceradocumentsolutions.fr/fr/about-us/contact-us.html">Nous contacter</a>
+                    <a href="https://www.kyoceradocumentsolutions.fr/fr/footer/privacy-and-cookie-centre.html">Utilisation des cookies</a>
+                    <a href="https://www.kyoceradocumentsolutions.fr/fr/footer/data-request.html">Politique de gestion des données personnelles</a>
+                    <a href="https://www.kyoceradocumentsolutions.fr/fr/footer/terms-of-use.html">Conditions d'utilisation et restrictions légales</a>
+                    <a href="https://www.kyoceradocumentsolutions.fr/fr/footer/legal-notices.html">Conditions Générales de Vente</a>
+                    <a href="https://www.kyoceradocdocumentsolutions.fr/fr/gdpr-preferences.html">Gérer vos cookies</a>
+                    <a href="https://www.kyoceradocumentsolutions.fr/fr/about-us/contact-us/press.html">Presse</a>
+                </div>
+                <div class="mobile-footer-copyright">©2025 KYOCERA Document Solutions France S.A.S.</div>
+            </div>
+        </div>
+    </footer>
+
+
+
+    <!-- Minimal JS to keep menu/search behavior consistent with index.html -->
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            const hamburger = document.getElementById('hamburger');
+            const headerNav = document.querySelector('.header-nav');
+            if (hamburger && headerNav) {
+                hamburger.addEventListener('click', function () {
+                    headerNav.classList.toggle('active');
+                    const spans = hamburger.querySelectorAll('span');
+                    if (headerNav.classList.contains('active')) {
+                        spans[0].style.transform = 'rotate(45deg) translate(5px, 5px)';
+                        spans[1].style.opacity = '0';
+                        spans[2].style.transform = 'rotate(-45deg) translate(7px, -6px)';
+                    } else {
+                        spans[0].style.transform = 'none';
+                        spans[1].style.opacity = '1';
+                        spans[2].style.transform = 'none';
+                    }
+                });
+            }
+        });
+    </script>
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            // Configuration for content files and their target elements
+            const contentConfig = [
+                {
+                    source: 'teteSuperieure.html',
+                    titleSelector: 'h1, h2, h3',
+                    imageSelector: 'img',
+                    descSelector: 'p span[style*="font-size: 14px"]',
+                    targetTitle: '.title-accent',
+                    targetImage: '.newsletter-hero img',
+                    targetDesc: '.lead',
+                    errorMsg: 'teteSuperieure (Main Title)'
+                },
+                {
+                    source: 'contenuDeGauche.html',
+                    titleSelector: 'h2, h3',
+                    imageSelector: 'img',
+                    descSelector: 'p span[style*="font-size: 14px"]',
+                    targetTitle: '.cards-grid.kyo-tiles .kyo-tile:nth-child(1) h3',
+                    targetImage: '.cards-grid.kyo-tiles .kyo-tile:nth-child(1) img',
+                    targetDesc: '.cards-grid.kyo-tiles .kyo-tile:nth-child(1) p',
+                    errorMsg: 'contenuDeGauche (First Tile)'
+                },
+                {
+                    source: 'contenuCentral.html',
+                    titleSelector: 'h2, h3',
+                    imageSelector: 'img',
+                    descSelector: 'p span[style*="font-size: 14px"]',
+                    targetTitle: '.cards-grid.kyo-tiles .kyo-tile:nth-child(2) h3',
+                    targetImage: '.cards-grid.kyo-tiles .kyo-tile:nth-child(2) img',
+                    targetDesc: '.cards-grid.kyo-tiles .kyo-tile:nth-child(2) p',
+                    errorMsg: 'contenuCentral (Second Tile)'
+                },
+                {
+                    source: 'contenuDeDroite.html',
+                    titleSelector: 'h2, h3',
+                    imageSelector: 'img',
+                    descSelector: 'p span[style*="font-size: 14px"]',
+                    targetTitle: '.cards-grid.kyo-tiles .kyo-tile:nth-child(3) h3',
+                    targetImage: '.cards-grid.kyo-tiles .kyo-tile:nth-child(3) img',
+                    targetDesc: '.cards-grid.kyo-tiles .kyo-tile:nth-child(3) p',
+                    errorMsg: 'contenuDeDroite (Third Tile)'
+                }
+            ];
+
+            // Function to fetch and update content
+            async function updateContent(config) {
+                try {
+                    const response = await fetch(`${config.source}?t=${Date.now()}`); // Cache buster
+                    if (!response.ok) throw new Error(`HTTP error! status: ${response.status}`);
+                    
+                    const html = await response.text();
+                    const parser = new DOMParser();
+                    const doc = parser.parseFromString(html, 'text/html');
+                    
+                    // Update title if selector exists
+                    const titleElement = doc.querySelector(config.titleSelector);
+                    const targetTitle = document.querySelector(config.targetTitle);
+                    
+                    if (titleElement && targetTitle) {
+                        // Get text content from the element, including nested spans and other elements
+                        const titleText = titleElement.innerText || titleElement.textContent || '';
+                        const trimmedText = titleText.trim();
+                        console.log(`Updating title from ${config.source}:`, { 
+                            selector: config.titleSelector, 
+                            foundText: trimmedText,
+                            targetSelector: config.targetTitle
+                        });
+                        
+                        if (trimmedText) {
+                            targetTitle.textContent = trimmedText;
+                            console.log('Title update successful');
+                        } else {
+                            console.warn('Found title element but text content is empty');
+                        }
+                    } else {
+                        if (!titleElement) {
+                            console.warn(`Title element not found with selector: ${config.titleSelector} in ${config.source}`);
+                        }
+                        if (!targetTitle) {
+                            console.warn(`Target title element not found with selector: ${config.targetTitle} in index.html`);
+                        }
+                    }
+                    
+                    // Update image if selector exists
+                    const imageElement = doc.querySelector(config.imageSelector);
+                    const targetImage = document.querySelector(config.targetImage);
+                    
+                    if (imageElement && targetImage) {
+                        // Handle both absolute and relative image paths
+                        const imageSrc = imageElement.src || imageElement.getAttribute('src');
+                        if (imageSrc) {
+                            targetImage.src = imageSrc;
+                            targetImage.alt = imageElement.alt || '';
+                            console.log(`Updated image from ${config.source} to:`, imageSrc);
+                        } else {
+                            console.warn('Image source is empty in', config.source);
+                        }
+                    } else {
+                        if (!imageElement) {
+                            console.warn(`Image element not found with selector: ${config.imageSelector} in ${config.source}`);
+                        }
+                        if (!targetImage) {
+                            console.warn(`Target image element not found with selector: ${config.targetImage} in index.html`);
+                        }
+                    }
+
+                    // Update description/résumé if configured
+                    if (config.descSelector && config.targetDesc) {
+                        let descElement = doc.querySelector(config.descSelector);
+                        // Fallbacks: some sources may not use exact 14px spans
+                        if (!descElement) {
+                            descElement = doc.querySelector('p span[style*="font-size:"]');
+                        }
+                        if (!descElement) {
+                            // Use the first non-empty paragraph
+                            descElement = Array.from(doc.querySelectorAll('p'))
+                                .find(p => (p.innerText || p.textContent || '').trim().length > 0);
+                        }
+                        const targetDesc = document.querySelector(config.targetDesc);
+
+                        if (descElement && targetDesc) {
+                            const descText = descElement.innerText || descElement.textContent || '';
+                            const trimmedDesc = descText.trim();
+                            if (trimmedDesc) {
+                                targetDesc.textContent = trimmedDesc;
+                                console.log(`Updated description from ${config.source}`);
+                            } else {
+                                console.warn(`Found description element but text is empty in ${config.source}`);
+                            }
+                        } else {
+                            if (!descElement) console.warn(`Description not found with selector: ${config.descSelector} in ${config.source}`);
+                            if (!targetDesc) console.warn(`Target description not found: ${config.targetDesc} in index.html`);
+                        }
+                    }
+                    
+                    return true;
+                } catch (error) {
+                    console.error(`Error syncing ${config.errorMsg}:`, error);
+                    return false;
+                }
+            }
+
+            // Main sync function with retry logic
+            async function syncContentWithRetry(config, retries = 3, delay = 1000) {
+                for (let i = 0; i < retries; i++) {
+                    const success = await updateContent(config);
+                    if (success) return true;
+                    if (i < retries - 1) {
+                        await new Promise(resolve => setTimeout(resolve, delay));
+                    }
+                }
+                return false;
+            }
+
+            // Initialize real-time syncing
+            function initRealTimeSync() {
+                // Initial sync
+                contentConfig.forEach(config => {
+                    syncContentWithRetry(config);
+                });
+
+                // Set up periodic sync (every 5 seconds)
+                const syncInterval = setInterval(() => {
+                    contentConfig.forEach(config => {
+                        syncContentWithRetry(config);
+                    });
+                }, 5000);
+
+                // Clean up on page unload
+                window.addEventListener('beforeunload', () => {
+                    clearInterval(syncInterval);
+                });
+            }
+
+            // Start the synchronization
+            initRealTimeSync();
+        });
+    </script>
+</body>
+</html>
