@@ -265,7 +265,23 @@
             <button class="table-tool" id="insertColBtn"><i class="fas fa-plus"></i> Colonne</button>
             <button class="table-tool" id="deleteRowBtn"><i class="fas fa-minus"></i> Ligne</button>
             <button class="table-tool" id="deleteColBtn"><i class="fas fa-minus"></i> Colonne</button>
-            <input type="color" id="tableBgColor" class="color-picker" title="Couleur de fond">
+            <div class="dropdown">
+                <button class="table-tool" id="tableBgColorDropdownBtn" title="Couleur de fond du tableau">
+                    <i class="fas fa-fill-drip" style="background-color: #ffffff;"></i>
+                </button>
+                <div class="dropdown-content" id="tableBgColorDropdownContent" style="display: none;">
+                    <input type="color" id="tableBgColorPicker" class="toolbar-color" value="#ffffff">
+                    <div class="color-palette" id="tableBgColorPalette">
+                        <div class="palette-color" style="background-color: #6e3cbe;" data-color="#6e3cbe"></div>
+                        <div class="palette-color" style="background-color: #0a9bcd;" data-color="#0a9bcd"></div>
+                        <div class="palette-color" style="background-color: #f5b400;" data-color="#f5b400"></div>
+                        <div class="palette-color" style="background-color: #f06400;" data-color="#f06400"></div>
+                        <div class="palette-color" style="background-color: #00b176;" data-color="#00b176"></div>
+                        <div class="palette-color" style="background-color: #000000;" data-color="#000000"></div>
+                        <div class="palette-color" style="background-color: #ffffff;" data-color="#ffffff"></div>
+                    </div>
+                </div>
+            </div>
             <button class="table-tool" id="tablePropsBtn"><i class="fas fa-cog"></i> Propriétés</button>
             </div>
                 </div>

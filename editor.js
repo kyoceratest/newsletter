@@ -16,6 +16,10 @@ class NewsletterEditor {
         this.savedSelection = null;
         this.currentEditingSection = null;
         this.currentEditingVideo = null;
+        this.currentEditingTable = null;
+        this.lastMousePosition = { x: 0, y: 0 };
+        this.lastHoveredTableCell = null;
+        this.lastClickedTableCell = null;
         // Increment this when autosave schema/behavior changes to avoid restoring stale content
         this.storageVersion = '2';
         this.init();
@@ -226,10 +230,11 @@ class NewsletterEditor {
         editable.addEventListener('mouseup', () => this.saveSelection());
         editable.addEventListener('keyup', () => this.saveSelection());
 
-        // Show Section/Video toolbars on click
+        // Show Section/Video/Table toolbars on click
         editable.addEventListener('click', (e) => {
             const sectionEl = e.target.closest('.newsletter-section, .gallery-section, .two-column-layout, .syc-item');
             const videoEl = e.target.closest('video, iframe');
+            const tableEl = e.target.closest('table');
 
             if (sectionEl) {
                 this.showSectionToolbar(sectionEl);
@@ -241,6 +246,12 @@ class NewsletterEditor {
                 this.showVideoToolbar(videoEl);
             } else if (!e.target.closest('#videoToolbar')) {
                 this.hideVideoToolbar();
+            }
+
+            if (tableEl) {
+                this.showTableToolbar(tableEl);
+            } else if (!e.target.closest('#tableToolbar')) {
+                this.hideTableToolbar();
             }
         });
 
@@ -315,12 +326,38 @@ class NewsletterEditor {
 
         editable.addEventListener('mousemove', updateMouseRange);
         editable.addEventListener('click', updateMouseRange);
+        
+        // Track mouse position for table color picker
+        document.addEventListener('mousemove', (e) => {
+            this.lastMousePosition = { x: e.clientX, y: e.clientY };
+            
+            // Store the current table cell if hovering over one
+            const elementUnderMouse = document.elementFromPoint(e.clientX, e.clientY);
+            if (elementUnderMouse) {
+                const cell = elementUnderMouse.closest('td, th');
+                if (cell && cell.closest('table')) {
+                    this.lastHoveredTableCell = cell;
+                }
+            }
+        });
+        
+        // Also capture cell on click for more precision
+        document.addEventListener('click', (e) => {
+            const elementUnderClick = document.elementFromPoint(e.clientX, e.clientY);
+            if (elementUnderClick) {
+                const cell = elementUnderClick.closest('td, th');
+                if (cell && cell.closest('table')) {
+                    this.lastClickedTableCell = cell;
+                }
+            }
+        });
         // While starting a new drag selection inside the editor, hide the toolbar to avoid interference
         editable.addEventListener('mousedown', () => {
             const toolbar = document.getElementById('richTextToolbar');
             if (toolbar) toolbar.style.display = 'none';
             this.hideSectionToolbar();
             this.hideVideoToolbar();
+            this.hideTableToolbar();
         });
 
         // Add keyboard support for deleting selected images
@@ -425,6 +462,13 @@ class NewsletterEditor {
                 }
             }
 
+            // Hide table toolbar when clicking outside
+            if (!e.target.closest('#tableToolbar')) {
+                if (!e.target.closest('table')) {
+                    this.hideTableToolbar();
+                }
+            }
+
             // Close dropdowns when clicking outside
             const videoDD = document.getElementById('videoSizeOptions');
             const videoBtn = document.getElementById('videoSizeBtn');
@@ -435,6 +479,11 @@ class NewsletterEditor {
             const sectionBtn = document.getElementById('sectionWidthBtn');
             if (sectionDD && sectionDD.style.display === 'block' && !sectionDD.contains(e.target) && !sectionBtn.contains(e.target)) {
                 sectionDD.style.display = 'none';
+            }
+            const tableBgDD = document.getElementById('tableBgColorDropdownContent');
+            const tableBgBtn = document.getElementById('tableBgColorDropdownBtn');
+            if (tableBgDD && tableBgDD.style.display === 'block' && !tableBgDD.contains(e.target) && !tableBgBtn.contains(e.target)) {
+                tableBgDD.style.display = 'none';
             }
         });
     }
@@ -690,14 +739,16 @@ class NewsletterEditor {
             const hasText = selection && selection.rangeCount > 0 && selection.toString().length > 0;
             const inEditable = hasText && isSelectionInEditable();
 
-            // If any other floating toolbars are open (image/section/video), suppress the rich text toolbar
+            // If any other floating toolbars are open (image/section/video/table), suppress the rich text toolbar
             const imageTb = document.getElementById('imageToolbar');
             const sectionTb = document.getElementById('sectionToolbar');
             const videoTb = document.getElementById('videoToolbar');
+            const tableTb = document.getElementById('tableToolbar');
             const anotherToolbarOpen =
                 (imageTb && imageTb.style.display === 'block') ||
                 (sectionTb && sectionTb.style.display === 'block') ||
-                (videoTb && videoTb.style.display === 'block');
+                (videoTb && videoTb.style.display === 'block') ||
+                (tableTb && tableTb.style.display === 'block');
             if (anotherToolbarOpen) {
                 toolbar.style.display = 'none';
                 return;
@@ -763,6 +814,36 @@ class NewsletterEditor {
         const toolbar = document.getElementById('sectionToolbar');
         if (toolbar) toolbar.style.display = 'none';
         this.currentEditingSection = null;
+    }
+
+    // ===== Table Toolbar =====
+    showTableToolbar(tableEl) {
+        this.currentEditingTable = tableEl;
+        const toolbar = document.getElementById('tableToolbar');
+        const rect = tableEl.getBoundingClientRect();
+        const scrollTop = window.pageYOffset || document.documentElement.scrollTop;
+        const scrollLeft = window.pageXOffset || document.documentElement.scrollLeft;
+        
+        // Position toolbar above the table with more space to avoid covering first row
+        const toolbarHeight = toolbar.offsetHeight || 40; // fallback height
+        const gap = 15; // increased gap
+        const topPosition = rect.top + scrollTop - toolbarHeight - gap;
+        
+        // If toolbar would be too high (off screen), position it below the table instead
+        if (topPosition < scrollTop + 10) {
+            toolbar.style.top = `${rect.bottom + scrollTop + gap}px`;
+        } else {
+            toolbar.style.top = `${topPosition}px`;
+        }
+        
+        toolbar.style.left = `${rect.left + scrollLeft}px`;
+        toolbar.style.display = 'block';
+    }
+
+    hideTableToolbar() {
+        const toolbar = document.getElementById('tableToolbar');
+        if (toolbar) toolbar.style.display = 'none';
+        this.currentEditingTable = null;
     }
 
     // ===== Webinar Toolbar =====
@@ -1112,33 +1193,263 @@ class NewsletterEditor {
 
         // Insert row
         document.getElementById('insertRowBtn').addEventListener('click', () => {
-            // Implementation for inserting table row
+            this.insertTableRow();
         });
 
         // Insert column
         document.getElementById('insertColBtn').addEventListener('click', () => {
-            // Implementation for inserting table column
+            this.insertTableColumn();
         });
 
         // Delete row
         document.getElementById('deleteRowBtn').addEventListener('click', () => {
-            // Implementation for deleting table row
+            this.deleteTableRow();
         });
 
         // Delete column
         document.getElementById('deleteColBtn').addEventListener('click', () => {
-            // Implementation for deleting table column
+            this.deleteTableColumn();
         });
 
-        // Table background color
-        document.getElementById('tableBgColor').addEventListener('change', (e) => {
-            // Implementation for changing table background color
+        // Table background color dropdown
+        document.getElementById('tableBgColorDropdownBtn').addEventListener('click', (e) => {
+            e.stopPropagation();
+            const content = document.getElementById('tableBgColorDropdownContent');
+            content.style.display = content.style.display === 'none' ? 'block' : 'none';
+        });
+
+        // Table background color picker
+        document.getElementById('tableBgColorPicker').addEventListener('input', (e) => {
+            this.changeTableBackgroundColor(e.target.value);
+            document.querySelector('#tableBgColorDropdownBtn i').style.backgroundColor = e.target.value;
+        });
+
+        // Table background color palette
+        document.getElementById('tableBgColorPalette').addEventListener('click', (e) => {
+            if (e.target.classList.contains('palette-color')) {
+                const color = e.target.dataset.color;
+                this.changeTableBackgroundColor(color);
+                document.getElementById('tableBgColorPicker').value = color;
+                document.querySelector('#tableBgColorDropdownBtn i').style.backgroundColor = color;
+                document.getElementById('tableBgColorDropdownContent').style.display = 'none';
+            }
         });
 
         // Table properties
         document.getElementById('tablePropsBtn').addEventListener('click', () => {
-            // Implementation for table properties dialog
+            this.showTableProperties();
         });
+    }
+
+    // ===== Table Operations =====
+    insertTableRow() {
+        if (!this.currentEditingTable) return;
+        
+        const selection = window.getSelection();
+        let targetRow = null;
+        
+        if (selection.rangeCount > 0) {
+            const range = selection.getRangeAt(0);
+            targetRow = range.startContainer.nodeType === Node.ELEMENT_NODE 
+                ? range.startContainer.closest('tr')
+                : range.startContainer.parentElement.closest('tr');
+        }
+        
+        if (!targetRow) {
+            // If no specific row selected, add to the end
+            const tbody = this.currentEditingTable.querySelector('tbody') || this.currentEditingTable;
+            targetRow = tbody.lastElementChild;
+        }
+        
+        if (targetRow) {
+            const newRow = targetRow.cloneNode(true);
+            // Clear content of new row cells
+            newRow.querySelectorAll('td, th').forEach(cell => {
+                cell.innerHTML = '';
+            });
+            targetRow.parentNode.insertBefore(newRow, targetRow.nextSibling);
+            
+            this.saveState();
+            this.updateLastModified();
+            this.autoSaveToLocalStorage();
+        }
+    }
+
+    insertTableColumn() {
+        if (!this.currentEditingTable) return;
+        
+        const selection = window.getSelection();
+        let targetCell = null;
+        let columnIndex = 0;
+        
+        if (selection.rangeCount > 0) {
+            const range = selection.getRangeAt(0);
+            targetCell = range.startContainer.nodeType === Node.ELEMENT_NODE 
+                ? range.startContainer.closest('td, th')
+                : range.startContainer.parentElement.closest('td, th');
+        }
+        
+        if (targetCell) {
+            // Find column index
+            const row = targetCell.parentElement;
+            columnIndex = Array.from(row.children).indexOf(targetCell);
+        }
+        
+        // Add column to all rows
+        const rows = this.currentEditingTable.querySelectorAll('tr');
+        rows.forEach(row => {
+            const newCell = document.createElement(row.querySelector('th') ? 'th' : 'td');
+            newCell.innerHTML = '';
+            if (columnIndex < row.children.length) {
+                row.insertBefore(newCell, row.children[columnIndex + 1]);
+            } else {
+                row.appendChild(newCell);
+            }
+        });
+        
+        this.saveState();
+        this.updateLastModified();
+        this.autoSaveToLocalStorage();
+    }
+
+    deleteTableRow() {
+        if (!this.currentEditingTable) return;
+        
+        const selection = window.getSelection();
+        let targetRow = null;
+        
+        if (selection.rangeCount > 0) {
+            const range = selection.getRangeAt(0);
+            targetRow = range.startContainer.nodeType === Node.ELEMENT_NODE 
+                ? range.startContainer.closest('tr')
+                : range.startContainer.parentElement.closest('tr');
+        }
+        
+        if (targetRow && confirm('Supprimer cette ligne ?')) {
+            // Don't delete if it's the only row
+            const allRows = this.currentEditingTable.querySelectorAll('tr');
+            if (allRows.length > 1) {
+                targetRow.remove();
+                this.saveState();
+                this.updateLastModified();
+                this.autoSaveToLocalStorage();
+            } else {
+                alert('Impossible de supprimer la dernière ligne du tableau.');
+            }
+        }
+    }
+
+    deleteTableColumn() {
+        if (!this.currentEditingTable) return;
+        
+        const selection = window.getSelection();
+        let targetCell = null;
+        let columnIndex = 0;
+        
+        if (selection.rangeCount > 0) {
+            const range = selection.getRangeAt(0);
+            targetCell = range.startContainer.nodeType === Node.ELEMENT_NODE 
+                ? range.startContainer.closest('td, th')
+                : range.startContainer.parentElement.closest('td, th');
+        }
+        
+        if (targetCell) {
+            const row = targetCell.parentElement;
+            columnIndex = Array.from(row.children).indexOf(targetCell);
+            
+            // Check if it's the only column
+            if (row.children.length <= 1) {
+                alert('Impossible de supprimer la dernière colonne du tableau.');
+                return;
+            }
+            
+            if (confirm('Supprimer cette colonne ?')) {
+                // Remove column from all rows
+                const rows = this.currentEditingTable.querySelectorAll('tr');
+                rows.forEach(row => {
+                    if (row.children[columnIndex]) {
+                        row.children[columnIndex].remove();
+                    }
+                });
+                
+                this.saveState();
+                this.updateLastModified();
+                this.autoSaveToLocalStorage();
+            }
+        }
+    }
+
+    changeTableBackgroundColor(color) {
+        if (!this.currentEditingTable) return;
+        
+        let targetCell = null;
+        
+        // First try the last clicked table cell (most precise)
+        if (this.lastClickedTableCell && this.currentEditingTable.contains(this.lastClickedTableCell)) {
+            targetCell = this.lastClickedTableCell;
+        }
+        
+        // Then try the last hovered table cell
+        if (!targetCell && this.lastHoveredTableCell && this.currentEditingTable.contains(this.lastHoveredTableCell)) {
+            targetCell = this.lastHoveredTableCell;
+        }
+        
+        // Fallback to current mouse position
+        if (!targetCell && this.lastMousePosition) {
+            const elementUnderMouse = document.elementFromPoint(this.lastMousePosition.x, this.lastMousePosition.y);
+            if (elementUnderMouse) {
+                targetCell = elementUnderMouse.closest('td, th');
+                if (targetCell && !this.currentEditingTable.contains(targetCell)) {
+                    targetCell = null;
+                }
+            }
+        }
+        
+        // Fallback to selection
+        if (!targetCell) {
+            const selection = window.getSelection();
+            if (selection.rangeCount > 0) {
+                const range = selection.getRangeAt(0);
+                const container = range.startContainer;
+                const element = container.nodeType === Node.ELEMENT_NODE ? container : container.parentElement;
+                targetCell = element.closest('td, th');
+                if (targetCell && !this.currentEditingTable.contains(targetCell)) {
+                    targetCell = null;
+                }
+            }
+        }
+        
+        // Apply color to the target cell
+        if (targetCell) {
+            targetCell.style.backgroundColor = color;
+            // Add visual feedback
+            targetCell.style.transition = 'background-color 0.2s ease';
+        }
+        
+        this.saveState();
+        this.updateLastModified();
+        this.autoSaveToLocalStorage();
+    }
+
+    showTableProperties() {
+        if (!this.currentEditingTable) return;
+        
+        const currentBorder = this.currentEditingTable.style.border || '1px solid #ddd';
+        const currentWidth = this.currentEditingTable.style.width || '100%';
+        
+        const border = prompt('Bordure du tableau (ex: 1px solid #000):', currentBorder);
+        const width = prompt('Largeur du tableau (ex: 100%, 500px):', currentWidth);
+        
+        if (border !== null) {
+            this.currentEditingTable.style.border = border;
+        }
+        if (width !== null) {
+            this.currentEditingTable.style.width = width;
+        }
+        
+        this.saveState();
+        this.updateLastModified();
+        this.autoSaveToLocalStorage();
     }
     
     setupImageToolbar() {
