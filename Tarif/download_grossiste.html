@@ -5,6 +5,7 @@
     <title>Téléchargement - Tarif Grossiste</title>
     <link rel="stylesheet" href="login_page/styles/dye-pattern.css">
     <script src="src/auth.js"></script>
+    <script src="src/download-helper.js"></script>
     <script>
         checkAccess('Tarif Grossiste');
     </script>
@@ -20,34 +21,34 @@
 </head>
 <body>
     <main class="download-main">
-        <h2>Téléchargement - Tarif Grossiste</h1>
+        <h2>Téléchargement - Tarif Grossiste</h2>
         <div class="download-cards">
             <div class="download-card">
                 <div class="download-icon pdf"></div>
                 <div class="download-info">
                     <div class="download-title">Matériel (PDF)</div>
-                    <a href="Tarif_newsletter/grossiste_materiel.pdf" target="_blank" class="download-btn">Télécharger</a>
+                    <a href="Tarif_newsletter/grossiste_materiel.pdf" download="grossiste_materiel.pdf" class="download-btn" onclick="downloadFile(this.href, this.download); return false;">Télécharger</a>
                 </div>
             </div>
             <div class="download-card">
                 <div class="download-icon excel"></div>
                 <div class="download-info">
                     <div class="download-title">Matériel (Excel)</div>
-                    <a href="Tarif_newsletter/grossiste_materiel.xlsx" target="_blank" class="download-btn">Télécharger</a>
+                    <a href="Tarif_newsletter/grossiste_materiel.xlsx" download="grossiste_materiel.xlsx" class="download-btn" onclick="downloadFile(this.href, this.download); return false;">Télécharger</a>
                 </div>
             </div>
             <div class="download-card">
                 <div class="download-icon pdf"></div>
                 <div class="download-info">
                     <div class="download-title">Consommables (PDF)</div>
-                    <a href="Tarif_newsletter/grossiste_consommables.pdf" target="_blank" class="download-btn">Télécharger</a>
+                    <a href="Tarif_newsletter/grossiste_consommables.pdf" download="grossiste_consommables.pdf" class="download-btn" onclick="downloadFile(this.href, this.download); return false;">Télécharger</a>
                 </div>
             </div>
             <div class="download-card">
                 <div class="download-icon excel"></div>
                 <div class="download-info">
                     <div class="download-title">Consommables (Excel)</div>
-                    <a href="Tarif_newsletter/grossiste_consommables.xlsx" target="_blank" class="download-btn">Télécharger</a>
+                    <a href="Tarif_newsletter/grossiste_consommables.xlsx" download="grossiste_consommables.xlsx" class="download-btn" onclick="downloadFile(this.href, this.download); return false;">Télécharger</a>
                 </div>
             </div>
         </div>

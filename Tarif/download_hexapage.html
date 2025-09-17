@@ -5,6 +5,7 @@
     <title>Téléchargement - Tarif Hexapage</title>
     <link rel="stylesheet" href="login_page/styles/dye-pattern.css">
     <script src="src/auth.js"></script>
+    <script src="src/download-helper.js"></script>
     <script>
         checkAccess('Tarif Hexapage');
     </script>
@@ -25,28 +26,28 @@
                 <div class="download-icon pdf"></div>
                 <div class="download-info">
                     <div class="download-title">Matériel (PDF)</div>
-                    <a href="Tarif_newsletter/hexapage_materiel.pdf" target="_blank" class="download-btn">Télécharger</a>
+                    <a href="Tarif_newsletter/hexapage_materiel.pdf" download="hexapage_materiel.pdf" class="download-btn" onclick="downloadFile(this.href, this.download); return false;">Télécharger</a>
                 </div>
             </div>
             <div class="download-card">
                 <div class="download-icon excel"></div>
                 <div class="download-info">
                     <div class="download-title">Matériel (Excel)</div>
-                    <a href="Tarif_newsletter/hexapage_materiel.xlsx" target="_blank" class="download-btn">Télécharger</a>
+                    <a href="Tarif_newsletter/hexapage_materiel.xlsx" download="hexapage_materiel.xlsx" class="download-btn" onclick="downloadFile(this.href, this.download); return false;">Télécharger</a>
                 </div>
             </div>
             <div class="download-card">
                 <div class="download-icon pdf"></div>
                 <div class="download-info">
                     <div class="download-title">Consommables (PDF)</div>
-                    <a href="Tarif_newsletter/hexapage_consommables.pdf" target="_blank" class="download-btn">Télécharger</a>
+                    <a href="Tarif_newsletter/hexapage_consommables.pdf" download="hexapage_consommables.pdf" class="download-btn" onclick="downloadFile(this.href, this.download); return false;">Télécharger</a>
                 </div>
             </div>
             <div class="download-card">
                 <div class="download-icon excel"></div>
                 <div class="download-info">
                     <div class="download-title">Consommables (Excel)</div>
-                    <a href="Tarif_newsletter/hexapage_consommables.xlsx" target="_blank" class="download-btn">Télécharger</a>
+                    <a href="Tarif_newsletter/hexapage_consommables.xlsx" download="hexapage_consommables.xlsx" class="download-btn" onclick="downloadFile(this.href, this.download); return false;">Télécharger</a>
                 </div>
             </div>
         </div>
