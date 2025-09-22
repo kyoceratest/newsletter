@@ -173,42 +173,85 @@
 
 
 
-    <!-- Minimal JS to keep menu/search behavior consistent with index.html -->
+    <!-- Preview Content Handler -->
     <script>
-        document.addEventListener('DOMContentLoaded', function () {
-            const hamburger = document.getElementById('hamburger');
-            const headerNav = document.querySelector('.header-nav');
-            if (hamburger && headerNav) {
-                hamburger.addEventListener('click', function () {
-                    headerNav.classList.toggle('active');
-                    const spans = hamburger.querySelectorAll('span');
-                    if (headerNav.classList.contains('active')) {
-                        spans[0].style.transform = 'rotate(45deg) translate(5px, 5px)';
-                        spans[1].style.opacity = '0';
-                        spans[2].style.transform = 'rotate(-45deg) translate(7px, -6px)';
-                    } else {
-                        spans[0].style.transform = 'none';
-                        spans[1].style.opacity = '1';
-                        spans[2].style.transform = 'none';
-                    }
-                });
+        // Function to handle preview content from history modal
+        function handlePreviewContent(data) {
+            const { content, title } = data;
+            // Keep header and footer as-is; just render inside the content area
+            const target = document.getElementById('loadedContent');
+            if (target) {
+                target.innerHTML = content || '';
+            }
+            if (title) {
+                try { document.title = title + ' - Aperçu'; } catch(e) {}
+            }
+        }
+        
+        // Listen for messages from the parent window (history modal)
+        window.addEventListener('message', function(event) {
+            if (event.data && event.data.type === 'previewContent') {
+                handlePreviewContent(event.data);
             }
         });
-    </script>
-    <!-- Loader for content1-4 into main content area -->
-    <script>
+
+        // Check for historyId in URL parameters when page loads
         document.addEventListener('DOMContentLoaded', function () {
-            const selectEl = document.getElementById('contentSelect');
-            const statusEl = document.getElementById('contentStatus');
-            const targetEl = document.getElementById('loadedContent');
-            
-            // Helper to read URL query parameters
+            // Check if we're in preview mode (historyId in URL)
             function getUrlParameter(name) {
                 name = name.replace(/[\[]/, '\\[').replace(/[\]]/, '\\]');
                 const regex = new RegExp('[\\?&]' + name + '=([^&#]*)');
                 const results = regex.exec(location.search);
                 return results === null ? '' : decodeURIComponent(results[1].replace(/\+/g, ' '));
             }
+            
+            const historyId = getUrlParameter('historyId');
+            if (historyId) {
+                // Preview mode: keep layout; optionally indicate loading in content area
+                const target = document.getElementById('loadedContent');
+                if (target) target.innerHTML = '';
+            } else {
+                // Normal page load - initialize hamburger menu
+                const hamburger = document.getElementById('hamburger');
+                const headerNav = document.querySelector('.header-nav');
+                if (hamburger && headerNav) {
+                    hamburger.addEventListener('click', function () {
+                        headerNav.classList.toggle('active');
+                        const spans = hamburger.querySelectorAll('span');
+                        if (headerNav.classList.contains('active')) {
+                            spans[0].style.transform = 'rotate(45deg) translate(5px, 5px)';
+                            spans[1].style.opacity = '0';
+                            spans[2].style.transform = 'rotate(-45deg) translate(7px, -6px)';
+                        } else {
+                            spans[0].style.transform = 'none';
+                            spans[1].style.opacity = '1';
+                            spans[2].style.transform = 'none';
+                        }
+                    });
+                }
+            }
+        });
+    </script>
+    <!-- Content Loader Script -->
+    <script>
+        // Helper to read URL query parameters
+        function getUrlParameter(name) {
+            name = name.replace(/[\[]/, '\\[').replace(/[\]]/, '\\]');
+            const regex = new RegExp('[\\?&]' + name + '=([^&#]*)');
+            const results = regex.exec(location.search);
+            return results === null ? '' : decodeURIComponent(results[1].replace(/\+/g, ' '));
+        }
+        
+        // Check if we're in preview mode (historyId in URL)
+        const historyId = getUrlParameter('historyId');
+        
+        // Only initialize content loader if not in preview mode
+        if (!historyId) {
+            document.addEventListener('DOMContentLoaded', function () {
+                const selectEl = document.getElementById('contentSelect');
+                const statusEl = document.getElementById('contentStatus');
+                const targetEl = document.getElementById('loadedContent');
+            
 
             // Extract a title, prioritizing an element styled with font-size: 52px
             function extractTitleFromDoc(doc) {
@@ -250,7 +293,29 @@
                 }
             }
 
-            // Kick off label sync on load, then load content based on URL parameter
+            // Check for historyId in URL parameters
+        const historyId = getUrlParameter('historyId');
+        if (historyId) {
+            // If we have a historyId, we're in preview mode
+            document.body.style.padding = '0';
+            document.body.style.margin = '0';
+            
+            // Hide elements that might interfere with the preview
+            const header = document.querySelector('header');
+            if (header) header.style.display = 'none';
+            
+            const footer = document.querySelector('footer');
+            if (footer) footer.style.display = 'none';
+            
+            // Create a loading message
+            const loading = document.createElement('div');
+            loading.id = 'loading';
+            loading.textContent = 'Chargement de l\'aperçu...';
+            loading.style.padding = '20px';
+            loading.style.textAlign = 'center';
+            document.body.appendChild(loading);
+        } else {
+            // Otherwise, proceed with normal page load
             syncDropdownLabels().then(() => {
                 if (selectEl) {
                     const page = getUrlParameter('page');
@@ -325,13 +390,19 @@
                 }
             }
 
-            if (selectEl) {
-                selectEl.addEventListener('change', (e) => loadSelected(e.target.value));
-            }
-        });
+                if (selectEl) {
+                    selectEl.addEventListener('change', (e) => loadSelected(e.target.value));
+                }
+            });
+        }
     </script>
     <script>
         document.addEventListener('DOMContentLoaded', function () {
+            // Skip syncing when in preview mode (historyId present)
+            try {
+                const isPreview = new URLSearchParams(window.location.search).has('historyId');
+                if (isPreview) return;
+            } catch (e) {}
             // Configuration for content files and their target elements
             const contentConfig = [
                 {

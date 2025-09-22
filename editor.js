@@ -22,6 +22,8 @@ class NewsletterEditor {
         this.lastClickedTableCell = null;
         // Increment this when autosave schema/behavior changes to avoid restoring stale content
         this.storageVersion = '2';
+        // Track last user action for history subtitle
+        this.lastAction = 'Contenu modifié';
         this.init();
     }
 
@@ -99,7 +101,10 @@ class NewsletterEditor {
         });
 
         // URL image button
-        document.getElementById('urlImageBtn').addEventListener('click', () => {
+        document.getElementById('urlImageBtn').addEventListener('click', (e) => {
+            // Store the current mouse position when the button is clicked
+            this.lastMousePosition = { x: e.clientX, y: e.clientY };
+            
             const url = prompt('Entrez l\'URL de l\'image:');
             if (url) {
                 this.insertImage(url, 'Image URL');
@@ -198,16 +203,20 @@ class NewsletterEditor {
         // History button
         const historyBtn = document.getElementById('historyBtn');
         if (historyBtn) {
-            console.log('History button found, adding event listener');
-            historyBtn.addEventListener('click', () => {
-                console.log('History button clicked');
-                try {
-                    this.showHistory();
-                } catch (error) {
-                    console.error('Error in showHistory:', error);
-                    alert('Erreur lors de l\'affichage de l\'historique: ' + error.message);
-                }
-            });
+            if (window.__useInlineHistoryModal) {
+                console.log('Using inline History modal on this page; editor.js will not wire its own history handler.');
+            } else {
+                console.log('History button found, adding event listener');
+                historyBtn.addEventListener('click', () => {
+                    console.log('History button clicked');
+                    try {
+                        this.showHistory();
+                    } catch (error) {
+                        console.error('Error in showHistory:', error);
+                        alert('Erreur lors de l\'affichage de l\'historique: ' + error.message);
+                    }
+                });
+            }
         } else {
             console.error('historyBtn not found');
         }
@@ -223,6 +232,8 @@ class NewsletterEditor {
             this.saveState();
             this.updateLastModified();
             this.autoSaveToLocalStorage(); // Auto-save to localStorage
+            // Update last action for history subtitle
+            this.lastAction = 'Texte modifié';
         });
 
         // Track selection inside editable content to keep toolbar actions working
@@ -997,6 +1008,7 @@ class NewsletterEditor {
         this.saveState();
         this.updateLastModified();
         this.autoSaveToLocalStorage();
+        this.lastAction = 'Section déplacée';
         // Keep it in view after moving
         try {
             section.scrollIntoView({ behavior: 'smooth', block: 'center' });
@@ -1031,6 +1043,7 @@ class NewsletterEditor {
         this.saveState();
         this.updateLastModified();
         this.autoSaveToLocalStorage();
+        this.lastAction = 'Section alignée';
         this.showSectionToolbar(section);
     }
 
@@ -1042,6 +1055,7 @@ class NewsletterEditor {
             this.saveState();
             this.updateLastModified();
             this.autoSaveToLocalStorage();
+            this.lastAction = 'Section supprimée';
         }
     }
 
@@ -1060,6 +1074,7 @@ class NewsletterEditor {
         this.saveState();
         this.updateLastModified();
         this.autoSaveToLocalStorage();
+        this.lastAction = 'Largeur de section ajustée';
         this.showSectionToolbar(section);
     }
 
@@ -1117,6 +1132,7 @@ class NewsletterEditor {
         this.saveState();
         this.updateLastModified();
         this.autoSaveToLocalStorage();
+        this.lastAction = 'Taille de vidéo ajustée';
         this.showVideoToolbar(el);
     }
 
@@ -1153,6 +1169,7 @@ class NewsletterEditor {
         this.saveState();
         this.updateLastModified();
         this.autoSaveToLocalStorage();
+        this.lastAction = 'Vidéo alignée';
         this.showVideoToolbar(el);
     }
 
@@ -1165,12 +1182,15 @@ class NewsletterEditor {
             if (parent && parent.classList.contains('video-align-wrapper')) {
                 parent.remove();
             } else {
+                // Fallback: remove the image directly
                 node.remove();
             }
+            
             this.hideVideoToolbar();
             this.saveState();
             this.updateLastModified();
             this.autoSaveToLocalStorage();
+            this.lastAction = 'Vidéo supprimée';
         }
     }
 
@@ -1181,6 +1201,85 @@ class NewsletterEditor {
         this.savedSelection = selection.getRangeAt(0).cloneRange();
     }
 
+    // Insert raw HTML at the current selection inside #editableContent
+    insertHTMLAtCursor(html) {
+        const selection = window.getSelection();
+        if (selection && selection.rangeCount > 0) {
+            const range = selection.getRangeAt(0);
+            // Ensure the insertion happens inside the editor
+            const node = range.startContainer;
+            const host = node && (node.nodeType === Node.ELEMENT_NODE ? node : node.parentElement);
+            if (host && host.closest && host.closest('#editableContent')) {
+                range.deleteContents();
+                const div = document.createElement('div');
+                div.innerHTML = html;
+                const fragment = document.createDocumentFragment();
+                while (div.firstChild) {
+                    fragment.appendChild(div.firstChild);
+                }
+                range.insertNode(fragment);
+                return;
+            }
+        }
+        // Fallback append to editor
+        const editable = document.getElementById('editableContent');
+        editable.innerHTML += html;
+    }
+
+    // Insert a DOM element at the current cursor or last mouse position range
+    insertElementAtCursor(element) {
+        const selection = window.getSelection();
+        const editable = document.getElementById('editableContent');
+        let range = null;
+
+        // Prefer lastMouseRange if it points inside the editor
+        if (this.lastMouseRange) {
+            try {
+                const node = this.lastMouseRange.startContainer;
+                const host = node && (node.nodeType === Node.ELEMENT_NODE ? node : node.parentElement);
+                if (host && host.closest && host.closest('#editableContent')) {
+                    range = this.lastMouseRange.cloneRange();
+                }
+            } catch (_) {}
+        }
+
+        // Otherwise, use current selection if inside editor
+        if (!range && selection && selection.rangeCount > 0) {
+            const r = selection.getRangeAt(0);
+            const node = r.startContainer;
+            const host = node && (node.nodeType === Node.ELEMENT_NODE ? node : node.parentElement);
+            if (host && host.closest && host.closest('#editableContent')) {
+                range = r.cloneRange();
+            }
+        }
+
+        if (range) {
+            range.collapse(true);
+            range.insertNode(element);
+            // Place caret after inserted element to keep typing natural
+            const spacer = document.createElement('p');
+            spacer.innerHTML = '<br>';
+            element.after(spacer);
+            const newRange = document.createRange();
+            newRange.selectNodeContents(spacer);
+            newRange.collapse(true);
+            selection.removeAllRanges();
+            selection.addRange(newRange);
+            this.lastMouseRange = null;
+        } else {
+            // Append at end as a safe fallback
+            editable.appendChild(element);
+            const spacer = document.createElement('p');
+            spacer.innerHTML = '<br>';
+            editable.appendChild(spacer);
+            const newRange = document.createRange();
+            newRange.selectNodeContents(spacer);
+            newRange.collapse(true);
+            selection.removeAllRanges();
+            selection.addRange(newRange);
+            this.lastMouseRange = null;
+        }
+    }
     restoreSelection() {
         if (!this.savedSelection) return;
         const selection = window.getSelection();
@@ -1230,7 +1329,6 @@ class NewsletterEditor {
                 const color = e.target.dataset.color;
                 this.changeTableBackgroundColor(color);
                 document.getElementById('tableBgColorPicker').value = color;
-                document.querySelector('#tableBgColorDropdownBtn i').style.backgroundColor = color;
                 document.getElementById('tableBgColorDropdownContent').style.display = 'none';
             }
         });
@@ -1272,6 +1370,7 @@ class NewsletterEditor {
             this.saveState();
             this.updateLastModified();
             this.autoSaveToLocalStorage();
+            this.lastAction = 'Ligne de tableau insérée';
         }
     }
 
@@ -1310,6 +1409,7 @@ class NewsletterEditor {
         this.saveState();
         this.updateLastModified();
         this.autoSaveToLocalStorage();
+        this.lastAction = 'Colonne de tableau insérée';
     }
 
     deleteTableRow() {
@@ -1333,6 +1433,7 @@ class NewsletterEditor {
                 this.saveState();
                 this.updateLastModified();
                 this.autoSaveToLocalStorage();
+                this.lastAction = 'Ligne de tableau supprimée';
             } else {
                 alert('Impossible de supprimer la dernière ligne du tableau.');
             }
@@ -1375,6 +1476,7 @@ class NewsletterEditor {
                 this.saveState();
                 this.updateLastModified();
                 this.autoSaveToLocalStorage();
+                this.lastAction = 'Colonne de tableau supprimée';
             }
         }
     }
@@ -1429,6 +1531,7 @@ class NewsletterEditor {
         this.saveState();
         this.updateLastModified();
         this.autoSaveToLocalStorage();
+        this.lastAction = 'Couleur de fond de tableau ajustée';
     }
 
     showTableProperties() {
@@ -1450,6 +1553,7 @@ class NewsletterEditor {
         this.saveState();
         this.updateLastModified();
         this.autoSaveToLocalStorage();
+        this.lastAction = 'Propriétés de tableau ajustées';
     }
     
     setupImageToolbar() {
@@ -1536,6 +1640,7 @@ class NewsletterEditor {
                 this.originalImageHeight = this.currentEditingImage.naturalHeight;
                 
                 this.saveState();
+                this.lastAction = 'Image réinitialisée';
             }
         });
 
@@ -1562,6 +1667,7 @@ class NewsletterEditor {
                     this.saveState();
                     this.updateLastModified();
                     this.autoSaveToLocalStorage();
+                    this.lastAction = 'Image supprimée';
                 }
             }
         });
@@ -1719,6 +1825,7 @@ class NewsletterEditor {
             }
             
             this.saveState();
+            this.lastAction = 'Image tournée';
             
             // Refresh the resize handles
             this.removeResizeHandles();
@@ -1766,6 +1873,7 @@ class NewsletterEditor {
             this.currentEditingImage.src = flippedImageDataUrl;
             
             this.saveState();
+            this.lastAction = 'Image retournée';
             
             // Refresh the resize handles
             this.removeResizeHandles();
@@ -1951,11 +2059,18 @@ class NewsletterEditor {
                 // Apply the rotation to the image data using canvas
                 this.applyRotationToImageData();
                 this.saveState();
+                this.lastAction = 'Image tournée';
             };
             
             // Add event listeners
             document.addEventListener('mousemove', mouseMoveHandler);
             document.addEventListener('mouseup', mouseUpHandler);
+            
+            // Store references to remove later
+            this.resizeEventHandlers = {
+                mousemove: mouseMoveHandler,
+                mouseup: mouseUpHandler
+            };
         });
     }
     
@@ -2124,6 +2239,7 @@ class NewsletterEditor {
         }
         
         this.saveState();
+        this.lastAction = 'Position de l\'image ajustée';
     }
     
     makeImageDraggable(wrapper) {
@@ -2141,15 +2257,10 @@ class NewsletterEditor {
             // Store the initial position
             startX = e.clientX;
             startY = e.clientY;
-            startLeft = parseInt(wrapper.style.left) || 0;
-            startTop = parseInt(wrapper.style.top) || 0;
-            
-            // Set data for drag operation
-            e.dataTransfer.setData('text/plain', 'dragging-image');
-            e.dataTransfer.effectAllowed = 'move';
-            
-            // Add a class to indicate dragging
-            wrapper.classList.add('dragging');
+            startLeft = parseInt(wrapper.style.left);
+            startTop = parseInt(wrapper.style.top);
+            e.preventDefault();
+            e.stopPropagation();
         };
         
         // Add drag end event
@@ -2181,6 +2292,7 @@ class NewsletterEditor {
             wrapper.style.top = (startTop + dy) + 'px';
             
             this.saveState();
+            this.lastAction = 'Image déplacée';
         };
         
         // Add mouse events for more precise dragging
@@ -2196,8 +2308,8 @@ class NewsletterEditor {
                 // Store the initial position
                 startX = e.clientX;
                 startY = e.clientY;
-                startLeft = parseInt(wrapper.style.left) || 0;
-                startTop = parseInt(wrapper.style.top) || 0;
+                startLeft = parseInt(wrapper.style.left);
+                startTop = parseInt(wrapper.style.top);
                 
                 // Add a class to indicate dragging
                 wrapper.classList.add('dragging');
@@ -2238,6 +2350,7 @@ class NewsletterEditor {
             document.removeEventListener('mouseup', mouseUpHandler);
             
             this.saveState();
+            this.lastAction = 'Image déplacée';
         };
         
         // Add event listeners
@@ -2420,6 +2533,7 @@ class NewsletterEditor {
                 document.removeEventListener('mousemove', mouseMoveHandler);
                 document.removeEventListener('mouseup', mouseUpHandler);
                 this.saveState();
+                this.lastAction = 'Taille de l\'image ajustée';
             };
             
             // Add event listeners
@@ -2762,6 +2876,7 @@ class NewsletterEditor {
             this.showResizeAndRotationHandles();
             
             this.saveState();
+            this.lastAction = 'Image recadrée';
         } catch (error) {
             console.error('Error during image cropping:', error);
             alert('Une erreur est survenue lors du recadrage de l\'image. Veuillez réessayer.');
@@ -2821,12 +2936,15 @@ class NewsletterEditor {
         this.saveState();
         this.updateLastModified();
         this.autoSaveToLocalStorage();
+        this.lastAction = 'Image insérée';
     }
 
     insertImage(src, altText) {
         const img = document.createElement('img');
         img.src = src;
         img.alt = altText;
+        
+        // Apply default image styles
         img.style.cssText = 'max-width: 100%; height: auto; margin: 10px 0; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1);';
         
         // Store original image source for reset functionality
@@ -2836,6 +2954,13 @@ class NewsletterEditor {
         const wrapper = document.createElement('div');
         wrapper.className = 'image-wrapper position-inline';
         wrapper.style.cssText = 'position: relative; display: block; margin: 15px auto;';
+        
+        // Add mouse position tracking for the wrapper
+        wrapper.addEventListener('mousedown', (e) => {
+            // Store the mouse position when clicking on the image
+            this.lastMousePosition = { x: e.clientX, y: e.clientY };
+            e.stopPropagation();
+        });
         wrapper.appendChild(img);
         
         // Create delete button
@@ -2870,6 +2995,7 @@ class NewsletterEditor {
                 this.saveState();
                 this.updateLastModified();
                 this.autoSaveToLocalStorage();
+                this.lastAction = 'Image supprimée';
             }
         });
         
@@ -2907,6 +3033,7 @@ class NewsletterEditor {
                     this.saveState();
                     this.updateLastModified();
                     this.autoSaveToLocalStorage();
+                    this.lastAction = 'Image supprimée';
                 }
             }
         });
@@ -2916,6 +3043,7 @@ class NewsletterEditor {
         
         this.insertElementAtCursor(wrapper);
         this.saveState();
+        this.lastAction = 'Image insérée';
     }
 
     insertVideo(url) {
@@ -2933,6 +3061,7 @@ class NewsletterEditor {
         
         this.insertHTMLAtCursor(embedCode);
         this.saveState();
+        this.lastAction = 'Vidéo insérée';
     }
 
     insertLocalVideo(src, name) {
@@ -2943,6 +3072,7 @@ class NewsletterEditor {
         
         this.insertElementAtCursor(video);
         this.saveState();
+        this.lastAction = 'Vidéo insérée';
     }
 
     extractYouTubeId(url) {
@@ -2979,6 +3109,7 @@ class NewsletterEditor {
             
             this.insertElementAtCursor(table);
             this.saveState();
+            this.lastAction = 'Tableau inséré';
         }
     }
 
@@ -3008,6 +3139,7 @@ class NewsletterEditor {
         this.insertElementAtCursor(articleSection);
         this.saveState();
         document.getElementById('sectionOptions').style.display = 'none';
+        this.lastAction = 'Section article insérée';
     }
 
     insertGallerySection() {
@@ -3066,6 +3198,7 @@ class NewsletterEditor {
         this.insertElementAtCursor(gallerySection);
         this.saveState();
         document.getElementById('sectionOptions').style.display = 'none';
+        this.lastAction = 'Section galerie insérée';
     }
 
     addImageToGallery(file, galleryGrid) {
@@ -3146,6 +3279,7 @@ class NewsletterEditor {
                 if (confirm('Voulez-vous vraiment supprimer cette image ?')) {
                     imageContainer.remove();
                     this.saveState();
+                    this.lastAction = 'Image de galerie supprimée';
                 }
             });
             
@@ -3162,6 +3296,7 @@ class NewsletterEditor {
                         r.onload = (re) => {
                             img.src = re.target.result;
                             this.saveState();
+                            this.lastAction = 'Image de galerie remplacée';
                         };
                         r.readAsDataURL(file);
                     }
@@ -3241,6 +3376,7 @@ class NewsletterEditor {
                     description.textContent = 'Cliquez pour ajouter une description';
                 } else {
                     this.saveState();
+                    this.lastAction = 'Description de galerie modifiée';
                 }
             };
             
@@ -3295,6 +3431,7 @@ class NewsletterEditor {
             }
             
             this.saveState();
+            this.lastAction = 'Image de galerie ajoutée';
         };
 
         this.compressImageFile(file, { maxWidth: 1600, maxHeight: 1200, quality: 0.9 })
@@ -3332,145 +3469,6 @@ class NewsletterEditor {
                 return closest;
             }
         }, { offset: Number.NEGATIVE_INFINITY }).element;
-    }
-
-    addImageToColumn(file, targetContainer) {
-        const handleLoaded = (dataUrl) => {
-            // Create image container like gallery
-            const imageContainer = document.createElement('div');
-            imageContainer.className = 'column-image-container';
-            imageContainer.style.cssText = 'position: relative; border-radius: 8px; overflow: hidden; cursor: pointer; width: 100%; height: auto; margin: 0; padding: 0;';
-            
-            // Create image element
-            const img = document.createElement('img');
-            img.src = dataUrl;
-            img.style.cssText = 'width: 100%; height: auto; max-height: 400px; object-fit: cover; display: block; border-radius: 0; margin: 0; padding: 0;';
-            img.alt = file.name;
-            
-            // Create overlay with controls like gallery
-            const overlay = document.createElement('div');
-            overlay.className = 'image-overlay';
-            overlay.style.cssText = `
-                position: absolute;
-                top: 0;
-                left: 0;
-                right: 0;
-                bottom: 0;
-                background: rgba(0,0,0,0.7);
-                display: flex;
-                align-items: center;
-                justify-content: center;
-                opacity: 0;
-                transition: opacity 0.3s ease;
-            `;
-            
-            // Create delete button like gallery
-            const deleteBtn = document.createElement('button');
-            deleteBtn.innerHTML = '<i class="fas fa-trash"></i>';
-            deleteBtn.className = 'gallery-control-btn';
-            deleteBtn.title = 'Supprimer l\'image';
-            deleteBtn.style.cssText = `
-                background: #dc3545;
-                color: white;
-                border: none;
-                padding: 10px;
-                border-radius: 50%;
-                cursor: pointer;
-                font-size: 16px;
-                margin: 5px;
-                transition: background-color 0.3s ease;
-            `;
-            
-            // Create enlarge button like gallery
-            const enlargeBtn = document.createElement('button');
-            enlargeBtn.innerHTML = '<i class="fas fa-expand"></i>';
-            enlargeBtn.className = 'gallery-control-btn';
-            enlargeBtn.title = 'Agrandir l\'image';
-            enlargeBtn.style.cssText = `
-                background: #007bff;
-                color: white;
-                border: none;
-                padding: 10px;
-                border-radius: 50%;
-                cursor: pointer;
-                font-size: 16px;
-                margin: 5px;
-                transition: background-color 0.3s ease;
-            `;
-            
-            // Add buttons to overlay
-            overlay.appendChild(deleteBtn);
-            overlay.appendChild(enlargeBtn);
-            
-            // Add elements to container
-            imageContainer.appendChild(img);
-            imageContainer.appendChild(overlay);
-            
-            // Add hover effects like gallery
-            imageContainer.addEventListener('mouseenter', () => {
-                overlay.style.opacity = '1';
-            });
-            
-            imageContainer.addEventListener('mouseleave', () => {
-                overlay.style.opacity = '0';
-            });
-            
-            // Delete functionality
-            deleteBtn.addEventListener('click', (e) => {
-                e.stopPropagation();
-                if (confirm('Êtes-vous sûr de vouloir supprimer cette image ?')) {
-                    imageContainer.remove();
-                    this.saveState();
-                }
-            });
-            
-            // Enlarge functionality
-            enlargeBtn.addEventListener('click', (e) => {
-                e.stopPropagation();
-                // Create modal for enlarged view
-                const modal = document.createElement('div');
-                modal.style.cssText = `
-                    position: fixed;
-                    top: 0;
-                    left: 0;
-                    width: 100%;
-                    height: 100%;
-                    background: rgba(0,0,0,0.9);
-                    display: flex;
-                    align-items: center;
-                    justify-content: center;
-                    z-index: 10000;
-                    cursor: pointer;
-                `;
-                
-                const enlargedImg = document.createElement('img');
-                enlargedImg.src = img.src;
-                enlargedImg.style.cssText = 'max-width: 90%; max-height: 90%; object-fit: contain;';
-                
-                modal.appendChild(enlargedImg);
-                document.body.appendChild(modal);
-                
-                // Close on click
-                modal.addEventListener('click', () => {
-                    document.body.removeChild(modal);
-                });
-            });
-            
-            // Replace placeholder content with image
-            targetContainer.innerHTML = '';
-            targetContainer.appendChild(imageContainer);
-            
-            this.saveState();
-            this.updateLastModified();
-            this.autoSaveToLocalStorage();
-        };
-        this.compressImageFile(file, { maxWidth: 1600, maxHeight: 1200, quality: 0.9 })
-            .then(handleLoaded)
-            .catch(() => {
-                const reader = new FileReader();
-                reader.onload = (e) => handleLoaded(e.target.result);
-                reader.readAsDataURL(file);
-            });
     }
 
     showImageModal(src, alt) {
@@ -3551,6 +3549,7 @@ class NewsletterEditor {
         this.insertElementAtCursor(quoteSection);
         this.saveState();
         document.getElementById('sectionOptions').style.display = 'none';
+        this.lastAction = 'Section citation insérée';
     }
 
     insertCTASection() {
@@ -3570,6 +3569,7 @@ class NewsletterEditor {
         this.insertElementAtCursor(ctaSection);
         this.saveState();
         document.getElementById('sectionOptions').style.display = 'none';
+        this.lastAction = 'Section CTA insérée';
     }
 
     insertContactSection() {
@@ -3604,6 +3604,7 @@ class NewsletterEditor {
         this.insertElementAtCursor(contactSection);
         this.saveState();
         document.getElementById('sectionOptions').style.display = 'none';
+        this.lastAction = 'Section contact insérée';
     }
 
     insertTwoColumnSection() {
@@ -3648,6 +3649,7 @@ class NewsletterEditor {
                         img.style.borderRadius = '8px';
                         imagePlaceholder.replaceWith(img);
                         this.saveState();
+                        this.lastAction = 'Image ajoutée';
                     };
                     reader.readAsDataURL(file);
                 }
@@ -3658,77 +3660,7 @@ class NewsletterEditor {
         this.insertElementAtCursor(twoColumnSection);
         this.saveState();
         document.getElementById('sectionOptions').style.display = 'none';
-    }
-
-    insertElementAtCursor(element) {
-        const selection = window.getSelection();
-        const editable = document.getElementById('editableContent');
-        let range = null;
-        if (this.lastMouseRange) {
-            try {
-                const node = this.lastMouseRange.startContainer;
-                const host = node && (node.nodeType === Node.ELEMENT_NODE ? node : node.parentElement);
-                if (host && host.closest && host.closest('#editableContent')) {
-                    range = this.lastMouseRange.cloneRange();
-                }
-            } catch (_) {}
-        }
-        if (!range && selection.rangeCount > 0) {
-            range = selection.getRangeAt(0).cloneRange();
-        }
-        // If range starts at the root container, place after nearest block under pointer
-        if (range && range.startContainer === editable) {
-            // keep as is; getRangeFromPoint already handled before/after logic
-        }
-        if (range) {
-            range.deleteContents();
-            range.insertNode(element);
-            // Ensure there is a place for the caret after the inserted block
-            const spacer = document.createElement('p');
-            spacer.innerHTML = '<br>';
-            if (element.nextSibling) {
-                element.parentNode.insertBefore(spacer, element.nextSibling);
-            } else {
-                element.parentNode.appendChild(spacer);
-            }
-            // Move caret to spacer (outside the new section)
-            const newRange = document.createRange();
-            newRange.selectNodeContents(spacer);
-            newRange.collapse(true);
-            selection.removeAllRanges();
-            selection.addRange(newRange);
-            // Reset last mouse range to avoid snapping back inside
-            this.lastMouseRange = null;
-        } else {
-            // Append at end when we don't have a good insertion range
-            editable.appendChild(element);
-            const spacer = document.createElement('p');
-            spacer.innerHTML = '<br>';
-            editable.appendChild(spacer);
-            const newRange = document.createRange();
-            newRange.selectNodeContents(spacer);
-            newRange.collapse(true);
-            selection.removeAllRanges();
-            selection.addRange(newRange);
-            this.lastMouseRange = null;
-        }
-    }
-
-    insertHTMLAtCursor(html) {
-        const selection = window.getSelection();
-        if (selection.rangeCount > 0) {
-            const range = selection.getRangeAt(0);
-            range.deleteContents();
-            const div = document.createElement('div');
-            div.innerHTML = html;
-            const fragment = document.createDocumentFragment();
-            while (div.firstChild) {
-                fragment.appendChild(div.firstChild);
-            }
-            range.insertNode(fragment);
-        } else {
-            document.getElementById('editableContent').innerHTML += html;
-        }
+        this.lastAction = 'Section deux colonnes insérée';
     }
 
     saveState() {
@@ -3818,6 +3750,7 @@ class NewsletterEditor {
             this.currentHistoryIndex--;
             document.getElementById('editableContent').innerHTML = this.history[this.currentHistoryIndex];
             this.updateLastModified();
+            this.lastAction = 'Édition annulée';
         }
     }
 
@@ -3826,6 +3759,7 @@ class NewsletterEditor {
             this.currentHistoryIndex++;
             document.getElementById('editableContent').innerHTML = this.history[this.currentHistoryIndex];
             this.updateLastModified();
+            this.lastAction = 'Édition rétablie';
         }
     }
 
@@ -3838,160 +3772,312 @@ class NewsletterEditor {
             document.getElementById('editableContent').innerHTML = '';
             this.saveState();
             this.updateLastModified();
+            this.lastAction = 'Contenu effacé';
         }
     }
 
     async save() {
         try {
             console.log('Save method called');
-            const fileName = 'newsletter';
+            const editableContent = document.getElementById('editableContent');
+            if (!editableContent) {
+                throw new Error('Éditeur de contenu introuvable');
+            }
             
-            // Create a temporary div to manipulate the content
+            // Get the content from the editor
+            let content = editableContent.innerHTML;
+            // Get the title from the HTML page's title element or use a default name
+            const pageTitle = document.title.trim() || 
+                             document.querySelector('h1, h2, h3')?.textContent.trim() || 
+                             'newsletter_sans_titre';
+            const fileName = pageTitle.replace(/[\\/:*?"<>|]/g, '_'); // Remove invalid filename characters
+            
+            // Create a temporary div to clean up the content
             const tempDiv = document.createElement('div');
-            tempDiv.innerHTML = document.getElementById('editableContent').innerHTML;
+            tempDiv.innerHTML = content;
             console.log('Content extracted for saving');
-        
-        // Remove all add buttons from the gallery sections before saving
-        const gallerySections = tempDiv.querySelectorAll('.gallery-section');
-        gallerySections.forEach(section => {
-            const addButton = section.querySelector('.add-image-placeholder');
-            if (addButton) {
-                addButton.remove();
+            
+            // Remove all editor-specific elements before saving
+            const elementsToRemove = [
+                '.add-image-placeholder',
+                '.add-more-btn',
+                '.image-toolbar',
+                '.resize-handle',
+                '.rotation-handle'
+            ];
+            
+            elementsToRemove.forEach(selector => {
+                tempDiv.querySelectorAll(selector).forEach(el => el.remove());
+            });
+            
+            // Get the cleaned content
+            const cleanedContent = tempDiv.innerHTML;
+            
+            // Indicate manual save as the last action
+            this.lastAction = 'Sauvegarde manuelle';
+
+            // Save to history first with the cleaned content
+            const historyItem = this.saveToHistory(fileName, cleanedContent);
+            if (historyItem) {
+                console.log('Saved to history:', historyItem);
+            } else {
+                console.warn('Failed to save to history');
             }
-            const addMoreBtn = section.querySelector('.add-more-btn');
-            if (addMoreBtn) {
-                addMoreBtn.remove();
-            }
-            // Also remove the file input
-            const fileInput = section.querySelector('.gallery-upload');
-            if (fileInput) {
-                fileInput.remove();
-            }
-        });
-        
-        const content = tempDiv.innerHTML;
-        
-        // Create full HTML document
-        const fullHTML = `<!DOCTYPE html>
+            
+            // Create a complete HTML document with the cleaned content
+            const fullHTML = `<!DOCTYPE html>
 <html lang="fr">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>${fileName}</title>
-    <link rel="stylesheet" href="styles.css">
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            line-height: 1.6;
+            margin: 0;
+            padding: 20px;
+            color: #333;
+        }
+        .newsletter-container {
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background: #fff;
+            box-shadow: 0 0 10px rgba(0,0,0,0.1);
+        }
+        img {
+            max-width: 100%;
+            height: auto;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 15px 0;
+        }
+        table, th, td {
+            border: 1px solid #ddd;
+        }
+        th, td {
+            padding: 10px;
+            text-align: left;
+        }
+        .newsletter-section {
+            margin: 20px 0;
+            padding: 15px;
+            border: 1px solid #eee;
+            border-radius: 5px;
+        }
+        .gallery-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+            gap: 10px;
+            margin: 15px 0;
+        }
+        .gallery-item {
+            position: relative;
+            overflow: hidden;
+            border-radius: 5px;
+        }
+        .gallery-item img {
+            width: 100%;
+            height: 150px;
+            object-fit: cover;
+            transition: transform 0.3s ease;
+        }
+        .gallery-item:hover img {
+            transform: scale(1.05);
+        }
+        .two-column-layout {
+            display: flex;
+            gap: 20px;
+        }
+        .column {
+            flex: 1;
+        }
+        @media (max-width: 768px) {
+            .two-column-layout {
+                flex-direction: column;
+            }
+        }
+        /* Ensure images maintain their aspect ratio */
+        img {
+            max-width: 100%;
+            height: auto;
+        }
+        /* Make sure tables are responsive */
+        table {
+            width: 100% !important;
+            max-width: 100%;
+            table-layout: fixed;
+        }
+    </style>
 </head>
 <body>
-    <div class="newsletter-content">
-        ${content}
+    <div class="newsletter-container">
+        ${cleanedContent}
     </div>
 </body>
 </html>`;
-        
-        // Try to use the File System Access API (modern browsers)
-        if ('showSaveFilePicker' in window) {
-            try {
-                const fileHandle = await window.showSaveFilePicker({
-                    suggestedName: fileName + '.html',
-                    types: [{
-                        description: 'HTML Files',
-                        accept: {
-                            'text/html': ['.html']
-                        }
-                    }]
-                });
-                
-                const writable = await fileHandle.createWritable();
-                await writable.write(fullHTML);
-                await writable.close();
-                
-                // Save to history
-                this.saveToHistory(fileName, content);
-                
-                // Show success message
-                alert('Newsletter sauvegardée avec succès !');
-                return;
-            } catch (err) {
-                // User cancelled the save dialog or another error occurred
-                console.log('File saving was cancelled or failed:', err);
-                return;
+
+            // Try to use the File System Access API (modern browsers)
+            if (window.showSaveFilePicker) {
+                try {
+                    const fileHandle = await window.showSaveFilePicker({
+                        suggestedName: `${fileName.replace(/[^\w\-.]/g, '_')}.html`,
+                        types: [{
+                            description: 'Fichier HTML',
+                            accept: { 'text/html': ['.html'] }
+                        }]
+                    });
+                    
+                    const writable = await fileHandle.createWritable();
+                    await writable.write(fullHTML);
+                    await writable.close();
+                    
+                    alert('Newsletter sauvegardée avec succès !');
+                    return;
+                } catch (err) {
+                    if (err.name !== 'AbortError') {
+                        console.error('Error saving file:', err);
+                        // Fall through to the download method
+                    } else {
+                        // User cancelled the save dialog
+                        return;
+                    }
+                }
             }
-        }
-        
-        // Fallback for older browsers
-        // Create and trigger download with save dialog
-        const blob = new Blob([fullHTML], { type: 'text/html' });
-        const url = URL.createObjectURL(blob);
-        
-        // Create a temporary link element
-        const a = document.createElement('a');
-        a.style.display = 'none';
-        a.href = url;
-        a.download = fileName + '.html';
-        
-        // Add to DOM, click and remove
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
-        
-        // Clean up the URL object
-        URL.revokeObjectURL(url);
-        
-        // Save to history
-        this.saveToHistory(fileName, content);
-        
-        // Show success message
-        alert('Newsletter sauvegardée avec succès !');
-        console.log('Save completed successfully');
+            
+            // Fallback for older browsers
+            try {
+                const blob = new Blob([fullHTML], { type: 'text/html;charset=utf-8' });
+                const url = URL.createObjectURL(blob);
+                
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `${fileName.replace(/[^\w\-.]/g, '_')}.html`;
+                
+                // Add to document, trigger click, then remove
+                document.body.appendChild(a);
+                a.click();
+                
+                // Clean up
+                setTimeout(() => {
+                    document.body.removeChild(a);
+                    URL.revokeObjectURL(url);
+                }, 100);
+                
+                console.log('Newsletter saved successfully');
+            } catch (error) {
+                console.error('Error during save:', error);
+                alert('Erreur lors de la sauvegarde: ' + (error.message || 'Erreur inconnue'));
+            }
         } catch (error) {
-            console.error('Error during save:', error);
-            alert('Erreur lors de la sauvegarde: ' + error.message);
+            console.error('Error in save process:', error);
         }
     }
 
+    // Persist a snapshot to localStorage 'newsletterHistory'
     saveToHistory(fileName, content) {
-        const historyItem = {
-            name: 'newsletter',
-            content: content,
-            date: new Date().toLocaleString('fr-FR'),
-            preview: content.substring(0, 100) + '...'
-        };
-        
-        let history = JSON.parse(localStorage.getItem('newsletterHistory') || '[]');
-        history.unshift(historyItem);
-        
-        // Keep only last 20 items
-        if (history.length > 20) {
-            history = history.slice(0, 20);
+        try {
+            // Generate unique ID
+            const id = Date.now().toString();
+
+            // Compute preview
+            const previewText = (content || '').replace(/<[^>]*>?/gm, '').substring(0, 150) + '...';
+
+            // Derive a meaningful title from content using inline font-size:52px, then H1/H2/H3, then text
+            let computedName = '';
+            try {
+                const temp = document.createElement('div');
+                temp.innerHTML = content || '';
+                const all = temp.querySelectorAll('*');
+                let found = null;
+                for (const el of all) {
+                    const styleAttr = (el.getAttribute && el.getAttribute('style')) || '';
+                    if (styleAttr && /font-size\s*:\s*52px/i.test(styleAttr)) { found = el; break; }
+                    if (el.style && (el.style.fontSize || '').toLowerCase() === '52px') { found = el; break; }
+                }
+                if (found && found.textContent) {
+                    computedName = found.textContent.trim();
+                }
+                if (!computedName) {
+                    const heading = temp.querySelector('h1, h2, h3');
+                    if (heading) computedName = (heading.textContent || '').trim();
+                }
+                if (!computedName) {
+                    computedName = (temp.textContent || '').trim().substring(0, 80);
+                }
+            } catch (_) {}
+            if (!computedName) computedName = fileName || 'Sans nom';
+
+            // Prepare item
+            const historyItem = {
+                id: id,
+                name: computedName,
+                content: content,
+                date: new Date().toLocaleString('fr-FR'),
+                preview: previewText,
+                timestamp: Date.now(),
+                lastAction: this.lastAction || 'Action inconnue'
+            };
+
+            // Read, de-duplicate by name, unshift, clamp to 20
+            let history = [];
+            try {
+                const raw = localStorage.getItem('newsletterHistory');
+                history = raw ? JSON.parse(raw) : [];
+                if (!Array.isArray(history)) history = [];
+            } catch (_) { history = []; }
+
+            // Do not deduplicate by name; allow multiple snapshots with same title
+            history.unshift(historyItem);
+            if (history.length > 20) history = history.slice(0, 20);
+            localStorage.setItem('newsletterHistory', JSON.stringify(history));
+
+            return historyItem;
+        } catch (error) {
+            console.error('Error saving to history:', error);
+            return null;
         }
-        
-        localStorage.setItem('newsletterHistory', JSON.stringify(history));
     }
 
     showHistory() {
         console.log('showHistory method called');
         
         try {
-            let history = JSON.parse(localStorage.getItem('newsletterHistory') || '[]');
-            console.log('Raw history data:', history);
-            
-            // Clean up invalid entries
-            history = history.filter(item => {
-                return item && 
-                       typeof item === 'object' && 
-                       item.name && 
-                       item.content && 
-                       typeof item.name === 'string' && 
-                       typeof item.content === 'string';
-            });
-            
-            // Save cleaned history back to localStorage
-            if (history.length !== JSON.parse(localStorage.getItem('newsletterHistory') || '[]').length) {
-                localStorage.setItem('newsletterHistory', JSON.stringify(history));
-                console.log('Cleaned up invalid history entries');
+            // Get history from localStorage
+            let history = [];
+            try {
+                const historyData = localStorage.getItem('newsletterHistory');
+                history = historyData ? JSON.parse(historyData) : [];
+                console.log('Loaded history from localStorage:', history);
+            } catch (e) {
+                console.error('Error parsing history from localStorage:', e);
+                history = [];
             }
             
-            console.log('Cleaned history data:', history);
+            // Clean up invalid entries and sort by timestamp (newest first)
+            history = history
+                .filter(item => {
+                    const isValid = item && 
+                                  typeof item === 'object' && 
+                                  item.name && 
+                                  item.content && 
+                                  typeof item.name === 'string' && 
+                                  typeof item.content === 'string';
+                    if (!isValid) {
+                        console.warn('Removing invalid history item:', item);
+                    }
+                    return isValid;
+                })
+                .sort((a, b) => (b.timestamp || 0) - (a.timestamp || 0));
+            
+            // Update localStorage with cleaned history
+            localStorage.setItem('newsletterHistory', JSON.stringify(history));
+            
+            console.log('Processed history data:', history);
             
             const historyList = document.getElementById('historyList');
             console.log('History list element:', historyList);
@@ -4001,57 +4087,217 @@ class NewsletterEditor {
             }
             
             if (history.length === 0) {
-                historyList.innerHTML = '<p style="text-align: center; color: #666;">Aucun historique disponible</p>';
+                historyList.innerHTML = `
+                    <div style="text-align: center; padding: 20px; color: #666;">
+                        <i class="fas fa-inbox" style="font-size: 48px; opacity: 0.5; margin-bottom: 10px;"></i>
+                        <p>Aucun historique disponible</p>
+                    </div>
+                `;
             } else {
-                historyList.innerHTML = history.map((item, index) => {
-                    // Check if item has required properties
+                // Create a document fragment for better performance
+                const fragment = document.createDocumentFragment();
+                
+                // Add a title
+                const title = document.createElement('h3');
+                title.textContent = 'Historique des sauvegardes';
+                title.style.margin = '0 0 15px 0';
+                title.style.color = '#333';
+                title.style.borderBottom = '1px solid #eee';
+                title.style.paddingBottom = '10px';
+                fragment.appendChild(title);
+                
+                // Add each history item
+                history.forEach(item => {
                     if (!item || !item.name || !item.content) {
-                        console.warn('Invalid history item:', item);
-                        return ''; // Skip invalid items
+                        console.warn('Skipping invalid history item:', item);
+                        return;
                     }
                     
-                    // Escape content for safe HTML insertion
-                    const escapedContent = item.content.replace(/'/g, "\\'").replace(/"/g, '\\"').replace(/\n/g, '\\n').replace(/\r/g, '\\r');
-                    const itemName = item.name || 'Sans nom';
-                    const itemDate = item.date || 'Date inconnue';
-                    const itemPreview = item.preview || 'Pas d\'aperçu disponible';
-                    
-                    return `
-                        <div class="history-item" style="border: 1px solid #ddd; border-radius: 8px; padding: 15px; margin-bottom: 10px; cursor: pointer; transition: background-color 0.3s ease;" onclick="editor.loadFromHistory('${itemName}', '${escapedContent}')">
-                            <h4 style="margin: 0 0 5px 0; color: #333;">${itemName}</h4>
-                            <p style="margin: 0 0 5px 0; color: #666; font-size: 14px;">${itemDate}</p>
-                            <p style="margin: 0; color: #888; font-size: 12px;">${itemPreview}</p>
-                        </div>
+                    const itemElement = document.createElement('div');
+                    itemElement.className = 'history-item';
+                    itemElement.style.cssText = `
+                        border: 1px solid #e0e0e0;
+                        border-radius: 8px;
+                        padding: 12px 15px;
+                        margin-bottom: 10px;
+                        cursor: pointer;
+                        transition: all 0.2s ease;
+                        background: white;
+                        box-shadow: 0 2px 4px rgba(0,0,0,0.05);
                     `;
-                }).filter(item => item !== '').join(''); // Remove empty items
+                    
+                    // Add hover effect
+                    itemElement.onmouseover = () => {
+                        itemElement.style.borderColor = '#0a9bcd';
+                        itemElement.style.boxShadow = '0 4px 8px rgba(0,0,0,0.1)';
+                    };
+                    itemElement.onmouseout = () => {
+                        itemElement.style.borderColor = '#e0e0e0';
+                        itemElement.style.boxShadow = '0 2px 4px rgba(0,0,0,0.05)';
+                    };
+                    
+                    // Format the date
+                    let formattedDate = 'Date inconnue';
+                    try {
+                        const date = item.date ? new Date(item.date) : new Date(item.timestamp);
+                        if (!isNaN(date.getTime())) {
+                            formattedDate = date.toLocaleString('fr-FR', {
+                                day: '2-digit',
+                                month: '2-digit',
+                                year: 'numeric',
+                                hour: '2-digit',
+                                minute: '2-digit'
+                            });
+                        }
+                    } catch (e) {
+                        console.warn('Error formatting date:', e);
+                    }
+                    
+                    // Create the item content
+                    itemElement.innerHTML = `
+                        <div style="display: flex; justify-content: space-between; align-items: center;">
+                            <h4 style="margin: 0 0 5px 0; color: #0a9bcd; font-size: 16px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 70%;">
+                                ${item.name || 'Sans nom'}
+                            </h4>
+                            <span style="color: #888; font-size: 12px;">${formattedDate}</span>
+                        </div>
+                        <p style="margin: 5px 0 0 0; color: #666; font-size: 13px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">
+                            ${item.preview || 'Aperçu non disponible'}
+                        </p>
+                    `;
+                    
+                    // Add click handler
+                    itemElement.onclick = () => {
+                        this.loadFromHistory(item.name, item.content);
+                    };
+                    
+                    fragment.appendChild(itemElement);
+                });
+                
+                // Clear and append the fragment
+                historyList.innerHTML = '';
+                historyList.appendChild(fragment);
             }
             
+            // Show the modal
             const modal = document.getElementById('historyModal');
-            console.log('History modal element:', modal);
-            
             if (!modal) {
                 throw new Error('historyModal element not found');
             }
             
-            modal.style.display = 'block';
-            console.log('Modal display set to block');
+            // Add close button if not exists
+            if (!document.getElementById('closeHistoryModal')) {
+                const closeBtn = document.createElement('button');
+                closeBtn.id = 'closeHistoryModal';
+                closeBtn.innerHTML = '&times;';
+                closeBtn.style.cssText = `
+                    position: absolute;
+                    top: 10px;
+                    right: 15px;
+                    background: none;
+                    border: none;
+                    font-size: 24px;
+                    cursor: pointer;
+                    color: #666;
+                `;
+                closeBtn.onclick = () => {
+                    // Fade out the modal content first
+                    const modalContent = modal.querySelector('.history-modal');
+                    if (modalContent) {
+                        modalContent.style.opacity = '0';
+                        modalContent.style.transform = 'translateY(-20px)';
+                    }
+                    
+                    // Then fade out the overlay
+                    modal.style.opacity = '0';
+                    
+                    // Hide everything after animation completes
+                    setTimeout(() => {
+                        modal.style.display = 'none';
+                        modal.style.pointerEvents = 'none';
+                    }, 300);
+                };
+                
+                // Add close button to modal header
+                const modalHeader = modal.querySelector('.modal-header');
+                if (modalHeader) {
+                    modalHeader.appendChild(closeBtn);
+                }
+            }
+            
+            // Show the modal with animation
+            modal.style.display = 'flex';
+            modal.style.pointerEvents = 'auto';
+            
+            // Force reflow
+            void modal.offsetWidth;
+            
+            // Fade in the overlay
+            modal.style.opacity = '1';
+            
+            // Get the modal content
+            const modalContent = modal.querySelector('.history-modal');
+            if (modalContent) {
+                // Reset and animate the modal content
+                modalContent.style.opacity = '0';
+                modalContent.style.transform = 'translateY(-20px)';
+                
+                // Animate in
+                setTimeout(() => {
+                    modalContent.style.opacity = '1';
+                    modalContent.style.transform = 'translateY(0)';
+                }, 10);
+            }
+            
+            console.log('History modal displayed');
             
         } catch (error) {
             console.error('Error in showHistory:', error);
-            alert('Erreur lors de l\'affichage de l\'historique: ' + error.message);
+            alert('Erreur lors de l\'affichage de l\'historique: ' + (error.message || 'Erreur inconnue'));
         }
     }
 
     loadFromHistory(name, content) {
-        if (confirm(`Charger "${name}" ? Le contenu actuel sera remplacé.`)) {
-            // Unescape the content
-            const unescapedContent = content.replace(/\\'/g, "'").replace(/\\"/g, '"').replace(/\\n/g, '\n').replace(/\\r/g, '\r');
-            document.getElementById('editableContent').innerHTML = unescapedContent;
-            this.saveState();
-            this.updateLastModified();
-            this.autoSaveToLocalStorage(); // Auto-save the restored content
-            document.getElementById('historyModal').style.display = 'none';
-            console.log('Content loaded and restored from history:', name);
+        try {
+            if (confirm(`Charger "${name}" ? Le contenu actuel sera remplacé.`)) {
+                // Unescape the content if it's a string with escape sequences
+                let unescapedContent = content;
+                if (typeof content === 'string') {
+                    unescapedContent = content
+                        .replace(/\\'/g, "'")
+                        .replace(/\\"/g, '"')
+                        .replace(/\\n/g, '\n')
+                        .replace(/\\r/g, '\r');
+                }
+                
+                // Update the editor content
+                document.getElementById('editableContent').innerHTML = unescapedContent;
+                
+                // Update the title if available in the history item
+                if (name && name !== 'newsletter_sans_titre') {
+                    const titleInput = document.getElementById('newsletterTitle');
+                    if (titleInput) {
+                        titleInput.value = name;
+                    }
+                }
+                
+                // Save the current state
+                this.saveState();
+                this.updateLastModified();
+                this.autoSaveToLocalStorage();
+                
+                // Close the history modal
+                const modal = document.getElementById('historyModal');
+                if (modal) {
+                    modal.style.display = 'none';
+                }
+                
+                console.log('Content loaded and restored from history:', name);
+                alert(`Contenu "${name}" chargé avec succès !`);
+            }
+        } catch (error) {
+            console.error('Error loading from history:', error);
+            alert('Erreur lors du chargement de l\'historique: ' + error.message);
         }
     }
 
@@ -4159,4 +4405,6 @@ class NewsletterEditor {
 let editor;
 document.addEventListener('DOMContentLoaded', () => {
     editor = new NewsletterEditor();
+    // Expose globally for inline modal to access lastAction and saveToHistory
+    try { window.editor = editor; } catch (_) {}
 });

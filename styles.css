@@ -1,4 +1,118 @@
-/* Color Palette */
+/* Removed mistakenly duplicated history modal overrides to preserve original styling */
+/* ==========================
+   History Modal (scoped)
+   ========================== */
+#historyModal .history-modal {
+  background: #fff;
+  border-radius: 8px;
+  width: 90%;
+  max-width: 1000px;
+  max-height: 90vh;
+  display: flex;
+  flex-direction: column;
+  position: relative;
+  box-shadow: 0 4px 30px rgba(0, 0, 0, 0.15);
+  margin: 0; padding: 0; overflow: hidden;
+}
+
+#historyModal .modal-header {
+  padding: 16px 20px;
+  border-bottom: 1px solid #e6e6e6;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+}
+
+#historyModal .modal-header h2 {
+  margin: 0;
+  font-size: 1.25rem;
+  font-weight: 600;
+  color: #333;
+}
+
+#historyModal .search-container {
+  position: relative;
+  flex: 1;
+  max-width: 420px;
+  min-width: 220px;
+}
+
+#historyModal .search-input {
+  width: 100%;
+  padding: 10px 14px 10px 36px;
+  border: 1px solid #d9d9d9;
+  border-radius: 6px;
+  font-size: 14px;
+}
+#historyModal .search-input:focus {
+  outline: none;
+  border-color: #4a90e2;
+  box-shadow: 0 0 0 2px rgba(74, 144, 226, 0.2);
+}
+#historyModal .search-icon {
+  position: absolute;
+  left: 12px; top: 50%; transform: translateY(-50%);
+  color: #888;
+}
+
+#historyModal .history-list-container {
+  flex: 1;
+  overflow-y: auto;
+  padding: 16px 20px;
+  background: #fafafa;
+}
+#historyModal .history-list { margin: 0; padding: 0; list-style: none; }
+
+#historyModal .history-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 16px;
+  background: #fff;
+  border: 1px solid #e9ecef;
+  border-radius: 8px;
+  margin-bottom: 12px;
+  transition: box-shadow 0.2s ease, border-color 0.2s ease;
+}
+#historyModal .history-item:hover { box-shadow: 0 4px 12px rgba(0,0,0,0.06); border-color: #e0e0e0; }
+#historyModal .history-item.selected { background: #f0f7ff; border-color: #0a9bcd; }
+
+/* Checkbox */
+#historyModal .history-checkbox { position: relative; width: 24px; height: 24px; flex-shrink: 0; }
+#historyModal .history-checkbox input { position: absolute; opacity: 0; height: 0; width: 0; }
+#historyModal .checkmark {
+  position: absolute; inset: 0; background: #fff; border: 2px solid #ccc; border-radius: 4px; transition: all .2s;
+}
+#historyModal .history-checkbox:hover input ~ .checkmark { border-color: #12a7cf; }
+#historyModal .history-checkbox input:checked ~ .checkmark { background: #12a7cf; border-color: #12a7cf; }
+#historyModal .checkmark:after { content: ""; position: absolute; display: none; }
+#historyModal .history-checkbox input:checked ~ .checkmark:after { display: block; }
+#historyModal .history-checkbox .checkmark:after { left:7px; top:3px; width:5px; height:10px; border: solid #fff; border-width:0 2px 2px 0; transform: rotate(45deg); }
+
+/* Content lines */
+#historyModal .history-item-content { display: flex; flex-direction: column; flex: 1; min-width: 0; }
+#historyModal .history-title { font-weight: 600; color: #243444; margin: 0 0 4px; }
+#historyModal .history-lastaction { color: #666; font-size: 13px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+#historyModal .history-date { color: #999; font-size: 12px; margin-top: 3px; }
+
+/* Right-side actions */
+#historyModal .history-actions { display: flex; align-items: center; gap: 8px; }
+#historyModal .btn-icon { background: #fff; border: 1px solid #e0e0e0; border-radius: 6px; width: 34px; height: 34px; display: grid; place-items: center; color: #666; transition: all .2s; }
+#historyModal .btn-icon:hover { background: #f7f7f7; color: #333; }
+#historyModal .btn-icon.delete-btn:hover { color: #e74c3c; border-color: #e74c3c; }
+
+/* Footer */
+#historyModal .modal-footer { padding: 14px 20px; border-top: 1px solid #e6e6e6; display: flex; align-items: center; justify-content: space-between; gap: 12px; background: #fff; }
+#historyModal .selection-info { color: #666; font-size: 14px; }
+#historyModal .action-buttons { display: flex; gap: 10px; }
+#historyModal .btn { padding: 8px 16px; border-radius: 6px; border: 1px solid transparent; font-size: 14px; cursor: pointer; transition: all .2s; }
+#historyModal .btn-primary { background: #0a9bcd; color: #fff; border-color: #0a9bcd; }
+#historyModal .btn-outline { background: #fff; color: #333; border-color: #ddd; }
+#historyModal .btn-danger { background: #dc3545; color: #fff; border-color: #dc3545; }
+#historyModal .btn:hover { opacity: .92; }
+
+
 :root {
   --kyocera-purple: #6e3cbe;
   --kyocera-blue: #0a9bcd;
@@ -1153,51 +1267,421 @@ footer.kyocera-footer *,
     width: 100%;
     height: 100%;
     background-color: rgba(0,0,0,0.5);
+    overflow-y: auto;
 }
 
 .modal-content {
     background-color: #ffffff;
     margin: 5% auto;
-    padding: 30px;
-    border-radius: 8px;
+    padding: 0;
+    border-radius: 4px;
     width: 80%;
-    max-width: 600px;
-    box-shadow: 0 8px 24px rgba(0,0,0,0.3);
+    max-width: 1000px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.15);
     position: relative;
+    display: flex;
+    flex-direction: column;
+    max-height: 90vh;
+    font-family: Arial, sans-serif;
+}
+
+.modal-header {
+    padding: 15px 20px;
+    border-bottom: 1px solid #e0e0e0;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background-color: #f5f5f5;
+}
+
+.modal-header h2 {
+    margin: 0;
+    font-size: 16px;
+    color: #333;
+    font-weight: 600;
 }
 
 .close {
-    color: #aaa;
-    float: right;
-    font-size: 28px;
-    font-weight: bold;
+    color: #6c757d;
+    font-size: 24px;
+    font-weight: normal;
     cursor: pointer;
-    position: absolute;
-    right: 15px;
-    top: 15px;
+    background: none;
+    border: none;
+    padding: 0 10px;
+    line-height: 1;
+    opacity: 0.7;
 }
 
 .close:hover {
+    opacity: 1;
     color: #000;
 }
 
+/* History Modal Styles */
+#historyModal {
+    display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-color: rgba(0, 0, 0, 0.5);
+    z-index: 1000;
+    justify-content: center;
+    align-items: center;
+}
+
+#historyModal .modal-content {
+    background: white;
+    border-radius: 4px;
+    width: 90%;
+    max-width: 600px;
+    max-height: 90vh;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+}
+
+#historyModal .modal-header {
+    padding: 16px 20px;
+    border-bottom: 1px solid #E0E0E0;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+#historyModal .modal-header h2 {
+    margin: 0;
+    font-size: 18px;
+    font-weight: 500;
+    color: #333;
+}
+
+#historyModal .close {
+    font-size: 24px;
+    cursor: pointer;
+    color: #666;
+    line-height: 1;
+}
+
+#historyModal .close:hover {
+    color: #333;
+}
+
 .history-list {
-    max-height: 400px;
+    padding: 0;
+    margin: 0;
     overflow-y: auto;
+    flex-grow: 1;
 }
 
 .history-item {
-    padding: 15px;
-    border: 1px solid #dee2e6;
-    border-radius: 6px;
-    margin-bottom: 10px;
-    cursor: pointer;
-    transition: all 0.3s ease;
+    padding: 12px 20px;
+    border-bottom: 1px solid #E0E0E0;
+    background: #FFF;
+    transition: background-color 0.2s;
 }
 
 .history-item:hover {
+    background-color: #F5F5F5;
+}
+
+.history-checkbox {
+    display: flex;
+    align-items: center;
+    width: 100%;
+    margin: 0;
+    cursor: pointer;
+    user-select: none;
+    position: relative;
+    padding-left: 34px;
+}
+
+/* Hide default checkbox */
+.history-checkbox input[type="checkbox"] {
+    position: absolute;
+    opacity: 0;
+    cursor: pointer;
+    height: 0;
+    width: 0;
+}
+
+/* Custom checkbox */
+.history-checkbox .checkmark {
+    position: absolute;
+    left: 0;
+    height: 18px;
+    width: 18px;
+    background-color: #FFF;
+    border: 1px solid #9E9E9E;
+    border-radius: 2px;
+    margin-right: 12px;
+}
+
+/* On mouse-over, add a grey background color */
+.history-checkbox:hover input ~ .checkmark {
+    background-color: #f0f0f0;
+}
+
+/* When the checkbox is checked, add a blue background */
+.history-checkbox input:checked ~ .checkmark {
+    background-color: #0A9BCD;
+    border-color: #0A9BCD;
+}
+
+/* Create the checkmark/indicator (hidden when not checked) */
+.history-checkbox .checkmark:after {
+    content: "";
+    position: absolute;
+    display: none;
+    left: 6px;
+    top: 2px;
+    width: 5px;
+    height: 10px;
+    border: solid white;
+    border-width: 0 2px 2px 0;
+    transform: rotate(45deg);
+}
+
+/* Show the checkmark when checked */
+.history-checkbox input:checked ~ .checkmark:after {
+    display: block;
+}
+
+.history-item-content {
+    display: flex;
+    flex-direction: column;
+}
+
+.history-title {
+    font-size: 14px;
+    color: #333;
+    margin: 0 0 2px 0;
+    font-weight: 500;
+}
+
+.history-date {
+    font-size: 12px;
+    color: #666;
+    margin: 0;
+}
+
+/* Modal footer styles */
+.modal-footer {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 12px 16px;
+    border-top: 1px solid #E0E0E0;
+}
+
+.select-actions {
+    display: flex;
+    gap: 8px;
+}
+
+.btn-outline {
+    background: transparent;
+    border: 1px solid #0A9BCD;
+    color: #0A9BCD;
+    padding: 6px 12px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 13px;
+}
+
+.btn-outline:hover {
+    background-color: #F0F9FC;
+}
+
+.action-buttons {
+    display: flex;
+    gap: 8px;
+}
+
+.btn-secondary {
+    background: #FFF;
+    border: 1px solid #E0E0E0;
+    color: #333;
+    padding: 6px 16px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 13px;
+}
+
+.btn-primary {
+    background: #0A9BCD;
+    color: white;
+    border: none;
+    padding: 7px 16px;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 13px;
+}
+
+.btn-primary:hover {
+    background-color: #098DBB;
+}
+
+/* Create the checkmark/indicator (hidden when not checked) */
+.checkmark:after {
+    content: "";
+    position: absolute;
+    display: none;
+}
+
+/* Show the checkmark when checked */
+.history-checkbox input:checked ~ .checkmark:after {
+    display: block;
+}
+
+/* Style the checkmark/indicator */
+.history-checkbox .checkmark:after {
+    left: 6px;
+    top: 2px;
+    width: 5px;
+    height: 10px;
+    border: solid white;
+    border-width: 0 2px 2px 0;
+    -webkit-transform: rotate(45deg);
+    -ms-transform: rotate(45deg);
+    transform: rotate(45deg);
+}
+
+.modal-footer {
+    padding: 15px 20px;
+    border-top: 1px solid #e0e0e0;
+    background-color: #f5f5f5;
+}
+
+.footer-actions {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.select-actions {
+    display: flex;
+    gap: 10px;
+}
+
+.action-buttons {
+    display: flex;
+    gap: 10px;
+}
+
+.btn {
+    padding: 6px 12px;
+    border-radius: 3px;
+    font-size: 13px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    border: 1px solid transparent;
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+}
+
+.btn-outline {
+    background-color: transparent;
+    border: 1px solid #ccc;
+    color: #333;
+}
+
+.btn-outline:hover {
+    background-color: #f0f0f0;
+}
+
+.btn-secondary {
     background-color: #f8f9fa;
+    border-color: #ced4da;
+    color: #333;
+}
+
+.btn-secondary:hover {
+    background-color: #e9ecef;
+    border-color: #adb5bd;
+}
+
+.btn-primary {
+    background-color: #007bff;
     border-color: #007bff;
+    color: #fff;
+}
+
+.btn-primary:hover {
+    background-color: #0069d9;
+    border-color: #0062cc;
+}
+
+.btn-danger {
+    background-color: #dc3545;
+    border-color: #dc3545;
+    color: #fff;
+}
+
+.btn-danger:hover {
+    background-color: #c82333;
+    border-color: #bd2130;
+}
+
+/* Custom checkbox styling */
+.history-checkbox {
+    position: relative;
+    padding-left: 25px;
+    cursor: pointer;
+    font-size: 13px;
+}
+
+.history-checkbox input {
+    position: absolute;
+    opacity: 0;
+    cursor: pointer;
+    height: 0;
+    width: 0;
+}
+
+.checkmark {
+    position: absolute;
+    top: 0;
+    left: 0;
+    height: 16px;
+    width: 16px;
+    background-color: #fff;
+    border: 1px solid #ccc;
+    border-radius: 2px;
+}
+
+.history-checkbox:hover input ~ .checkmark {
+    background-color: #f0f0f0;
+}
+
+.history-checkbox input:checked ~ .checkmark {
+    background-color: #007bff;
+    border-color: #007bff;
+}
+
+.checkmark:after {
+    content: "";
+    position: absolute;
+    display: none;
+}
+
+.history-checkbox input:checked ~ .checkmark:after {
+    display: block;
+}
+
+.history-checkbox .checkmark:after {
+    left: 5px;
+    top: 1px;
+    width: 4px;
+    height: 8px;
+    border: solid white;
+    border-width: 0 2px 2px 0;
+    transform: rotate(45deg);
 }
 
 /* Page Info */

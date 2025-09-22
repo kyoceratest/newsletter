@@ -1,31 +1,39 @@
 <?php
-header('Content-Type: application/json');
+declare(strict_types=1);
+
+// Basic CORS + JSON headers (no behavior change)
+header('Content-Type: application/json; charset=utf-8');
 header('Access-Control-Allow-Origin: *');
-header('Access-Control-Allow-Methods: POST');
+header('Access-Control-Allow-Methods: POST, OPTIONS');
 header('Access-Control-Allow-Headers: Content-Type');
 
-if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+// Preflight support
+if (($_SERVER['REQUEST_METHOD'] ?? '') === 'OPTIONS') {
+    http_response_code(204);
+    exit;
+}
+
+if (($_SERVER['REQUEST_METHOD'] ?? '') !== 'POST') {
     http_response_code(405);
-    echo json_encode(['error' => 'Method not allowed']);
+    echo json_encode(['error' => 'Method not allowed'], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
     exit;
 }
 
-// Get POST data
-$input = file_get_contents('php://input');
+// Read and validate payload
+$input = file_get_contents('php://input') ?: '';
 $data = json_decode($input, true);
-
-if (!$data || !isset($data['fileName']) || !isset($data['content'])) {
+if (!is_array($data) || !isset($data['fileName']) || !isset($data['content'])) {
     http_response_code(400);
-    echo json_encode(['error' => 'Missing fileName or content']);
+    echo json_encode(['error' => 'Missing fileName or content'], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
     exit;
 }
 
-$fileName = $data['fileName'];
-$content = $data['content'];
+$fileName = (string)$data['fileName'];
+$content  = (string)$data['content'];
 
-// Sanitize filename
-$fileName = preg_replace('/[^a-zA-Z0-9_\-]/', '', $fileName);
-if (empty($fileName)) {
+// Sanitize filename (keep alnum, underscore, hyphen)
+$fileName = preg_replace('/[^a-zA-Z0-9_\-]/', '', $fileName) ?? '';
+if ($fileName === '') {
     $fileName = 'newsletter_' . date('Y-m-d_H-i-s');
 }
 
@@ -34,31 +42,28 @@ if (!str_ends_with($fileName, '.html')) {
     $fileName .= '.html';
 }
 
-// Define the target directory
+// Target directory (unchanged)
 $targetDir = 'C:\\Newsletter\\';
 
-// Create directory if it doesn't exist
-if (!is_dir($targetDir)) {
-    if (!mkdir($targetDir, 0777, true)) {
-        http_response_code(500);
-        echo json_encode(['error' => 'Could not create directory']);
-        exit;
-    }
+// Ensure directory exists
+if (!is_dir($targetDir) && !mkdir($targetDir, 0777, true)) {
+    http_response_code(500);
+    echo json_encode(['error' => 'Could not create directory'], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+    exit;
 }
 
-// Full file path
 $filePath = $targetDir . $fileName;
 
-// Save the file
+// Save file
 if (file_put_contents($filePath, $content) !== false) {
     echo json_encode([
-        'success' => true,
-        'message' => 'File saved successfully',
+        'success'  => true,
+        'message'  => 'File saved successfully',
         'fileName' => $fileName,
-        'filePath' => $filePath
-    ]);
-} else {
-    http_response_code(500);
-    echo json_encode(['error' => 'Could not save file']);
+        'filePath' => $filePath,
+    ], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+    exit;
 }
-?>
+
+http_response_code(500);
+echo json_encode(['error' => 'Could not save file'], JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
