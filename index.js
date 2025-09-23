@@ -3,6 +3,32 @@
 
 // Header hamburger toggle
 document.addEventListener('DOMContentLoaded', function () {
+  // Auto-update month/year text in index page meta and title
+  try {
+    const now = new Date();
+    const monthsFr = ['janvier','février','mars','avril','mai','juin','juillet','août','septembre','octobre','novembre','décembre'];
+    const mois = monthsFr[now.getMonth()];
+    const annee = now.getFullYear();
+
+    // Update the small meta line: "Newsletter — Mois AAAA"
+    const metaEl = document.querySelector('.kyo-meta .meta');
+    if (metaEl) {
+      const base = 'Newsletter — ';
+      metaEl.textContent = base + (mois.charAt(0).toUpperCase() + mois.slice(1)) + ' ' + annee;
+    }
+
+    // Update the main title if it follows the pattern "Comptez sur nous — Mois AAAA"
+    const titleEl = document.querySelector('h1.title-accent');
+    if (titleEl) {
+      const txt = titleEl.textContent || '';
+      const parts = txt.split('—');
+      if (parts.length >= 1) {
+        const prefix = parts[0].trim();
+        titleEl.textContent = `${prefix} — ${mois.charAt(0).toUpperCase() + mois.slice(1)} ${annee}`;
+      }
+    }
+  } catch (e) { /* no-op */ }
+
   const hamburger = document.getElementById('hamburger');
   const headerNav = document.querySelector('.header-nav');
   if (hamburger && headerNav) {
@@ -31,7 +57,7 @@ document.addEventListener('DOMContentLoaded', function () {
       imageSelector: 'img',
       descSelector: 'p span[style*="font-size: 14px"]',
       targetTitle: '.title-accent',
-      targetImage: '.newsletter-hero img',
+      targetImage: null, // locked: hero image fixed to Image/page1.png
       targetDesc: '.lead',
       errorMsg: 'teteSuperieure (Main Title)'
     },
@@ -41,7 +67,7 @@ document.addEventListener('DOMContentLoaded', function () {
       imageSelector: 'img',
       descSelector: 'p span[style*="font-size: 14px"]',
       targetTitle: '.cards-grid.kyo-tiles .kyo-tile:nth-child(1) h3',
-      targetImage: '.cards-grid.kyo-tiles .kyo-tile:nth-child(1) img',
+      targetImage: null, // locked: tile 1 image fixed to Image/page2.png
       targetDesc: '.cards-grid.kyo-tiles .kyo-tile:nth-child(1) p',
       errorMsg: 'contenuDeGauche (First Tile)'
     },
@@ -51,7 +77,7 @@ document.addEventListener('DOMContentLoaded', function () {
       imageSelector: 'img',
       descSelector: 'p span[style*="font-size: 14px"]',
       targetTitle: '.cards-grid.kyo-tiles .kyo-tile:nth-child(2) h3',
-      targetImage: '.cards-grid.kyo-tiles .kyo-tile:nth-child(2) img',
+      targetImage: null, // locked: tile 2 image fixed to Image/page3.png
       targetDesc: '.cards-grid.kyo-tiles .kyo-tile:nth-child(2) p',
       errorMsg: 'contenuCentral (Second Tile)'
     },
@@ -61,11 +87,38 @@ document.addEventListener('DOMContentLoaded', function () {
       imageSelector: 'img',
       descSelector: 'p span[style*="font-size: 14px"]',
       targetTitle: '.cards-grid.kyo-tiles .kyo-tile:nth-child(3) h3',
-      targetImage: '.cards-grid.kyo-tiles .kyo-tile:nth-child(3) img',
+      targetImage: null, // locked: tile 3 image fixed to Image/page4.png
       targetDesc: '.cards-grid.kyo-tiles .kyo-tile:nth-child(3) p',
       errorMsg: 'contenuDeDroite (Third Tile)'
     }
   ];
+
+  // Helper: extract a meaningful title from a fetched HTML document
+  // Priority: inline style font-size:52px > font[size="7"] > first h1/h2/h3
+  function extractTitleFromDoc(doc, fallbackSelector) {
+    // 1) Scan for any element explicitly styled with font-size:52px and return first non-empty text
+    const fsCandidates = doc.querySelectorAll('span[style*="font-size: 52px"], span[style*="font-size:52px"], [style*="font-size: 52px"], [style*="font-size:52px"]');
+    for (const el of fsCandidates) {
+      const t = (el.innerText || el.textContent || '').replace(/\s+/g, ' ').trim();
+      if (t) return t;
+    }
+
+    // 2) Scan for <font size="7"> with non-empty text
+    const fontCandidates = doc.querySelectorAll('font[size="7"]');
+    for (const el of fontCandidates) {
+      const t = (el.innerText || el.textContent || '').replace(/\s+/g, ' ').trim();
+      if (t) return t;
+    }
+
+    // 3) Fallback: scan provided selector or generic headings and pick first non-empty
+    const sel = fallbackSelector || 'h1, h2, h3';
+    const headCandidates = doc.querySelectorAll(sel);
+    for (const el of headCandidates) {
+      const t = (el.innerText || el.textContent || '').replace(/\s+/g, ' ').trim();
+      if (t) return t;
+    }
+    return '';
+  }
 
   async function updateContent(config) {
     try {
@@ -75,13 +128,16 @@ document.addEventListener('DOMContentLoaded', function () {
       const parser = new DOMParser();
       const doc = parser.parseFromString(html, 'text/html');
 
-      // Title
-      const titleElement = doc.querySelector(config.titleSelector);
+      // Title (robust extraction to avoid empty headings)
       const targetTitle = document.querySelector(config.targetTitle);
-      if (titleElement && targetTitle) {
-        const titleText = titleElement.innerText || titleElement.textContent || '';
-        const trimmedText = titleText.trim();
-        if (trimmedText) targetTitle.textContent = trimmedText;
+      if (targetTitle) {
+        const extracted = extractTitleFromDoc(doc, config.titleSelector);
+        if (extracted) {
+          targetTitle.textContent = extracted;
+          console.debug(`[index.js] Synced title for ${config.errorMsg}:`, extracted);
+        } else {
+          console.debug(`[index.js] No title extracted for ${config.errorMsg}`);
+        }
       }
 
       // Image
@@ -92,6 +148,9 @@ document.addEventListener('DOMContentLoaded', function () {
         if (imageSrc) {
           targetImage.src = imageSrc;
           targetImage.alt = imageElement.alt || '';
+          console.debug(`[index.js] Synced image for ${config.errorMsg}:`, imageSrc);
+        } else {
+          console.debug(`[index.js] No image src found for ${config.errorMsg}`);
         }
       }
 
@@ -105,6 +164,9 @@ document.addEventListener('DOMContentLoaded', function () {
           const descText = descElement.innerText || descElement.textContent || '';
           const trimmedDesc = descText.trim();
           if (trimmedDesc) targetDesc.textContent = trimmedDesc;
+          console.debug(`[index.js] Synced desc for ${config.errorMsg}:`, trimmedDesc);
+        } else {
+          console.debug(`[index.js] No description found for ${config.errorMsg}`);
         }
       }
       return true;

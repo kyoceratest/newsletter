@@ -387,7 +387,7 @@
               const lastAction = (window.editor && window.editor.lastAction) ? window.editor.lastAction : 'Action inconnue';
               const item = { id, name: computedName, content, date: new Date().toLocaleString('fr-FR'), preview, timestamp: Date.now(), lastAction };
               history.unshift(item);
-              if (history.length > 20) history = history.slice(0, 20);
+              if (history.length > 200) history = history.slice(0, 200);
               localStorage.setItem('newsletterHistory', JSON.stringify(history));
               savedOk = true;
             } catch (e) { console.warn('Direct save to newsletterHistory failed:', e); }

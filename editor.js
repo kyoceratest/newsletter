@@ -39,6 +39,43 @@ class NewsletterEditor {
     setupEventListeners() {
         console.log('Setting up event listeners...');
         
+        // Track caret/range within the editor so insertions follow the user's pointer/caret
+        const editableHost = document.getElementById('editableContent');
+        if (editableHost) {
+            const updateRangeFromSelection = () => {
+                const sel = window.getSelection();
+                if (sel && sel.rangeCount > 0) {
+                    const r = sel.getRangeAt(0);
+                    // Only persist ranges inside the editor
+                    const node = r.startContainer;
+                    const host = node && (node.nodeType === Node.ELEMENT_NODE ? node : node.parentElement);
+                    if (host && host.closest && host.closest('#editableContent')) {
+                        this.lastMouseRange = r.cloneRange();
+                    }
+                }
+            };
+            // Update on mouse/key interactions
+            editableHost.addEventListener('mouseup', updateRangeFromSelection);
+            editableHost.addEventListener('keyup', updateRangeFromSelection);
+            editableHost.addEventListener('click', updateRangeFromSelection);
+
+            // Event delegation to re-enable image selection after restore/history load
+            editableHost.addEventListener('click', (e) => {
+                // Case 1: wrapped image
+                const wrapper = e.target && (e.target.closest && e.target.closest('.image-wrapper'));
+                if (wrapper) {
+                    const img = wrapper.querySelector('img') || wrapper;
+                    try { this.selectImage(img); } catch (_) {}
+                    return;
+                }
+                // Case 2: plain <img> without wrapper (e.g., from history or paste)
+                const el = e.target;
+                if (el && el.tagName === 'IMG') {
+                    try { this.selectImage(el); } catch (_) {}
+                }
+            });
+        }
+
         // Column image placeholder click handler - using gallery section logic
         const columnImagePlaceholder = document.getElementById('columnImagePlaceholder');
         if (columnImagePlaceholder) {
@@ -120,6 +157,11 @@ class NewsletterEditor {
 
         // URL video button
         document.getElementById('urlVideoBtn').addEventListener('click', () => {
+            // Persist current caret range so insertion follows the caret after prompt
+            try {
+                const sel = window.getSelection();
+                if (sel && sel.rangeCount > 0) this.lastMouseRange = sel.getRangeAt(0).cloneRange();
+            } catch (_) {}
             const url = prompt('Entrez l\'URL de la vidéo (YouTube, Vimeo, etc.):');
             if (url) {
                 this.insertVideo(url);
@@ -129,22 +171,35 @@ class NewsletterEditor {
 
         // Local video button
         document.getElementById('localVideoBtn').addEventListener('click', () => {
+            // Persist current caret range so insertion follows the caret after file dialog
+            try {
+                const sel = window.getSelection();
+                if (sel && sel.rangeCount > 0) this.lastMouseRange = sel.getRangeAt(0).cloneRange();
+            } catch (_) {}
             const input = document.createElement('input');
             input.type = 'file';
             input.accept = 'video/*';
             input.onchange = (e) => {
                 const file = e.target.files[0];
                 if (file) {
-                    const reader = new FileReader();
-                    reader.onload = (e) => {
-                        this.insertLocalVideo(e.target.result, file.name);
-                    };
-                    reader.readAsDataURL(file);
+                    // Use a blob URL to avoid creating massive data URLs that can freeze the page
+                    const objectUrl = URL.createObjectURL(file);
+                    this.insertLocalVideo(objectUrl, file.name);
                 }
             };
             input.click();
             document.getElementById('videoOptions').style.display = 'none';
         });
+
+        // Standardize videos button (apply 70% centered sizing on demand)
+        const standardizeBtn = document.getElementById('standardizeVideosBtn');
+        if (standardizeBtn) {
+            standardizeBtn.addEventListener('click', () => {
+                try { this.normalizeVideoStyles(); } catch (_) {}
+                const opts = document.getElementById('videoOptions');
+                if (opts) opts.style.display = 'none';
+            });
+        }
 
         // Insert Table button
         document.getElementById('insertTableBtn').addEventListener('click', () => {
@@ -1836,6 +1891,19 @@ class NewsletterEditor {
         img.src = this.currentEditingImage.src;
     }
     
+    // Central entry-point used by click handlers to activate the floating image tools
+    selectImage(image) {
+        if (!image) return;
+        // If a wrapper or container is passed, resolve to the inner <img>
+        try {
+            if (image.tagName !== 'IMG' && image.querySelector) {
+                const inner = image.querySelector('img');
+                if (inner) image = inner;
+            }
+        } catch (_) {}
+        this.showImageEditingTools(image);
+    }
+    
     flipImage(direction) {
         if (!this.currentEditingImage) return;
         
@@ -1910,7 +1978,17 @@ class NewsletterEditor {
         const rect = image.getBoundingClientRect();
         const scrollTop = window.pageYOffset || document.documentElement.scrollTop;
         
+        // Ensure toolbar is not inside section columns (flex children)
+        if (toolbar.parentElement !== document.body) {
+            try { document.body.appendChild(toolbar); } catch (_) {}
+        }
+        // Force absolute positioning to avoid affecting layout
+        toolbar.style.position = 'absolute';
+        toolbar.style.zIndex = '9999';
         toolbar.style.display = 'block';
+        toolbar.style.width = 'auto';
+        toolbar.style.pointerEvents = 'auto';
+        toolbar.style.margin = '0';
         toolbar.style.left = rect.left + 'px';
         toolbar.style.top = (rect.top + scrollTop - toolbar.offsetHeight - 10) + 'px';
         
@@ -3051,10 +3129,10 @@ class NewsletterEditor {
         
         if (url.includes('youtube.com') || url.includes('youtu.be')) {
             const videoId = this.extractYouTubeId(url);
-            embedCode = `<iframe width="560" height="315" src="https://www.youtube.com/embed/${videoId}" frameborder="0" allowfullscreen style="max-width: 100%; margin: 10px 0;"></iframe>`;
+            embedCode = `<iframe src="https://www.youtube.com/embed/${videoId}" frameborder="0" allowfullscreen style="width:70%; margin: 10px auto; display:block;"></iframe>`;
         } else if (url.includes('vimeo.com')) {
             const videoId = this.extractVimeoId(url);
-            embedCode = `<iframe src="https://player.vimeo.com/video/${videoId}" width="560" height="315" frameborder="0" allowfullscreen style="max-width: 100%; margin: 10px 0;"></iframe>`;
+            embedCode = `<iframe src="https://player.vimeo.com/video/${videoId}" frameborder="0" allowfullscreen style="width:70%; margin: 10px auto; display:block;"></iframe>`;
         } else {
             embedCode = `<video controls style="max-width: 100%; margin: 10px 0;"><source src="${url}" type="video/mp4">Votre navigateur ne supporte pas la vidéo.</video>`;
         }
@@ -3073,6 +3151,28 @@ class NewsletterEditor {
         this.insertElementAtCursor(video);
         this.saveState();
         this.lastAction = 'Vidéo insérée';
+    }
+
+    // Normalize all embedded videos/iframes to be 70% width, centered, with proper height
+    normalizeVideoStyles(root) {
+        const host = root || document.getElementById('editableContent');
+        if (!host) return;
+        const nodes = host.querySelectorAll('iframe, video');
+        nodes.forEach((n) => {
+            try {
+                // Remove fixed attributes that might constrain responsive layout
+                if (n.hasAttribute('width')) n.removeAttribute('width');
+                if (n.hasAttribute('height')) n.removeAttribute('height');
+                // Apply consistent sizing and centering
+                n.style.width = '70%';
+                n.style.margin = '10px auto';
+                n.style.display = 'block';
+                // Ensure proper height behavior
+                n.style.height = 'auto';
+                // Help browsers maintain aspect ratio (works for iframes and videos in modern browsers)
+                try { n.style.aspectRatio = '16 / 9'; } catch (_) {}
+            } catch (_) {}
+        });
     }
 
     extractYouTubeId(url) {
@@ -3615,21 +3715,55 @@ class NewsletterEditor {
         twoColumnSection.innerHTML = `
             <div class="column" style="flex: 1; background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.05);">
                 <div contenteditable="true">
-                    <h3>Syc Item - Titre 1</h3>
+                    <h3>Titre 1</h3>
                     <p>Contenu de l'élément 1. Ajoutez du texte, des images et d'autres éléments ici.</p>
                 </div>
             </div>
             <div class="column" style="flex: 1; background: white; padding: 20px; border-radius: 8px; box-shadow: 0 2px 4px rgba(0,0,0,0.05);">
-                <div class="image-placeholder" style="border: 2px dashed #ccc; padding: 40px; text-align: center; cursor: pointer; border-radius: 8px;">
+                <div class="image-placeholder" contenteditable="false" style="border: 2px dashed #ccc; padding: 40px; text-align: center; cursor: pointer; border-radius: 8px;">
                     <i class="fas fa-image" style="font-size: 24px; color: #6c757d; margin-bottom: 10px;"></i>
                     <p style="color: #6c757d; margin: 0;">Cliquez pour ajouter une image</p>
                 </div>
-                <div contenteditable="true" style="margin-top: 20px;">
-                    <h3>Syc Item - Titre 2</h3>
-                    <p>Contenu de l'élément 2.</p>
-                </div>
             </div>
         `;
+
+        // Disappearing notice text for left column: clear on first focus/click if unchanged
+        try {
+            const leftColumn = twoColumnSection.querySelector('.column');
+            const leftEditable = leftColumn && leftColumn.querySelector('[contenteditable="true"]');
+            if (leftEditable) {
+                const defaultTextMatcher = () => (leftEditable.textContent || '').trim().startsWith('Titre 1')
+                    && (leftEditable.textContent || '').includes("Contenu de l'élément 1");
+                const clearIfDefault = () => {
+                    if (!leftEditable.dataset.cleared && defaultTextMatcher()) {
+                        // Replace with a blank paragraph to retain height and caret
+                        leftEditable.innerHTML = '<p><br></p>';
+                        leftEditable.dataset.cleared = '1';
+                        try {
+                            // Place caret inside the blank paragraph
+                            const p = leftEditable.querySelector('p');
+                            if (p) {
+                                const range = document.createRange();
+                                range.selectNodeContents(p);
+                                range.collapse(true);
+                                const sel = window.getSelection();
+                                sel.removeAllRanges();
+                                sel.addRange(range);
+                                leftEditable.focus();
+                            }
+                        } catch (_) {}
+                    }
+                };
+                // Prevent bubbling so clicks/keys in left text do not trigger image/section handlers
+                ['mousedown','click','keydown','keyup'].forEach(evt => {
+                    leftEditable.addEventListener(evt, (e) => {
+                        e.stopPropagation();
+                    });
+                });
+                leftEditable.addEventListener('focus', clearIfDefault);
+                leftEditable.addEventListener('click', clearIfDefault);
+            }
+        } catch (_) {}
 
         const imagePlaceholder = twoColumnSection.querySelector('.image-placeholder');
         imagePlaceholder.addEventListener('click', () => {
@@ -3645,9 +3779,47 @@ class NewsletterEditor {
                     reader.onload = (event) => {
                         const img = document.createElement('img');
                         img.src = event.target.result;
-                        img.style.width = '100%';
-                        img.style.borderRadius = '8px';
+                        img.alt = 'Image';
+                        img.setAttribute('contenteditable', 'false');
+                        img.style.cssText = 'width:100%;height:auto;border-radius:8px;display:block;';
+                        // Make the image clickable for editing later
+                        img.addEventListener('click', (ev) => {
+                            ev.stopPropagation();
+                            try { this.selectImage(img); } catch (_) {}
+                        });
+                        // Remove any element(s) under the placeholder in the right column (text blocks, wrappers, etc.)
+                        // This avoids leaving misleading default text below the image
+                        try {
+                            let sib = imagePlaceholder.nextElementSibling;
+                            while (sib) {
+                                const next = sib.nextElementSibling;
+                                sib.remove();
+                                sib = next;
+                            }
+                        } catch (_) {}
                         imagePlaceholder.replaceWith(img);
+                        // Safety pass: remove any elements below the image in the same right column
+                        try {
+                            const column = img.closest('.column');
+                            if (column) {
+                                const children = Array.from(column.children);
+                                let imgSeen = false;
+                                for (const child of children) {
+                                    if (child === img || (child.querySelector && child.querySelector('img') === img)) {
+                                        imgSeen = true;
+                                        continue;
+                                    }
+                                    if (imgSeen) {
+                                        try { child.remove(); } catch (_) {}
+                                    }
+                                }
+                            }
+                        } catch (_) {}
+                        // Open crop tool immediately so user can adjust framing
+                        try {
+                            this.selectImage(img);
+                            this.startImageCropping();
+                        } catch (_) {}
                         this.saveState();
                         this.lastAction = 'Image ajoutée';
                     };
@@ -3984,7 +4156,10 @@ class NewsletterEditor {
             // Generate unique ID
             const id = Date.now().toString();
 
-            // Compute preview
+            // By default, keep the ORIGINAL content so restoring from history is lossless
+            let contentForHistory = content || '';
+
+            // Compute preview from the original HTML
             const previewText = (content || '').replace(/<[^>]*>?/gm, '').substring(0, 150) + '...';
 
             // Derive a meaningful title from content using inline font-size:52px, then H1/H2/H3, then text
@@ -3999,31 +4174,27 @@ class NewsletterEditor {
                     if (styleAttr && /font-size\s*:\s*52px/i.test(styleAttr)) { found = el; break; }
                     if (el.style && (el.style.fontSize || '').toLowerCase() === '52px') { found = el; break; }
                 }
-                if (found && found.textContent) {
-                    computedName = found.textContent.trim();
-                }
+                if (found && found.textContent) computedName = found.textContent.trim();
                 if (!computedName) {
                     const heading = temp.querySelector('h1, h2, h3');
                     if (heading) computedName = (heading.textContent || '').trim();
                 }
-                if (!computedName) {
-                    computedName = (temp.textContent || '').trim().substring(0, 80);
-                }
+                if (!computedName) computedName = (temp.textContent || '').trim().substring(0, 80);
             } catch (_) {}
             if (!computedName) computedName = fileName || 'Sans nom';
 
             // Prepare item
             const historyItem = {
-                id: id,
+                id,
                 name: computedName,
-                content: content,
+                content: contentForHistory,
                 date: new Date().toLocaleString('fr-FR'),
                 preview: previewText,
                 timestamp: Date.now(),
                 lastAction: this.lastAction || 'Action inconnue'
             };
 
-            // Read, de-duplicate by name, unshift, clamp to 20
+            // Read existing, push to front, clamp to 200 and save
             let history = [];
             try {
                 const raw = localStorage.getItem('newsletterHistory');
@@ -4031,10 +4202,50 @@ class NewsletterEditor {
                 if (!Array.isArray(history)) history = [];
             } catch (_) { history = []; }
 
-            // Do not deduplicate by name; allow multiple snapshots with same title
             history.unshift(historyItem);
-            if (history.length > 20) history = history.slice(0, 20);
-            localStorage.setItem('newsletterHistory', JSON.stringify(history));
+            if (history.length > 200) history = history.slice(0, 200);
+            // Try to persist; if quota exceeded, trim and/or slim down content
+            try {
+                localStorage.setItem('newsletterHistory', JSON.stringify(history));
+            } catch (e) {
+                if (e && (e.name === 'QuotaExceededError' || e.code === 22)) {
+                    // Remove oldest items until it fits
+                    let saved = false;
+                    while (history.length > 0 && !saved) {
+                        history.pop();
+                        try {
+                            localStorage.setItem('newsletterHistory', JSON.stringify(history));
+                            saved = true;
+                        } catch (_) { /* keep trimming */ }
+                    }
+                    if (!saved) {
+                        // Last resort: create a sanitized "slim" copy only for storage purposes
+                        let slim = { ...historyItem };
+                        try {
+                            // Start from original content and sanitize heavy sources
+                            let slimContent = (content || '');
+                            // Remove data: URIs (images/video/audio) and blob: URIs
+                            slimContent = slimContent.replace(/\s+src=\"data:[^\"]+\"/gi, '');
+                            slimContent = slimContent.replace(/\s+src=\"blob:[^\"]+\"/gi, '');
+                            // Remove <source src="..."> attributes
+                            slimContent = slimContent.replace(/<source([^>]*)src=\"[^\"]+\"([^>]*)>/gi, '<source$1$2>');
+                            // Collapse heavy <video> blocks
+                            slimContent = slimContent.replace(/<video[\s\S]*?<\/video>/gi, '<div class="video-placeholder" data-omitted="true"></div>');
+                            // Guard overall size
+                            slimContent = slimContent.slice(0, 200000); // ~200KB
+                            slim.content = slimContent;
+                        } catch(_) { slim.content = ''; }
+                        try {
+                            localStorage.setItem('newsletterHistory', JSON.stringify([slim]));
+                        } catch(_) {
+                            // Give up but avoid throwing; history won't be updated this round
+                            console.warn('History not saved due to storage quota, even after slimming');
+                        }
+                    }
+                } else {
+                    throw e;
+                }
+            }
 
             return historyItem;
         } catch (error) {
@@ -4272,6 +4483,8 @@ class NewsletterEditor {
                 
                 // Update the editor content
                 document.getElementById('editableContent').innerHTML = unescapedContent;
+                // Apply standard video sizing to history-loaded content
+                try { this.normalizeVideoStyles(); } catch (_) {}
                 
                 // Update the title if available in the history item
                 if (name && name !== 'newsletter_sans_titre') {
@@ -4331,6 +4544,8 @@ class NewsletterEditor {
             if (savedContent) {
                 document.getElementById('editableContent').innerHTML = savedContent;
                 console.log('Content restored from local/session storage');
+                // Apply standard video sizing to restored content
+                try { this.normalizeVideoStyles(); } catch (_) {}
             }
             
             // File name functionality removed
