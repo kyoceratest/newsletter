@@ -1691,6 +1691,7 @@ class NewsletterEditor {
         toIconOnly(document.getElementById('resetImageBtn'), '<i class="fas fa-undo"></i>', 'Réinitialiser');
         toIconOnly(document.getElementById('deleteImageBtn'), '<i class="fas fa-trash"></i>', 'Supprimer');
         toIconOnly(document.getElementById('rotationBtn'), '<i class="fas fa-sync"></i> <i class="fas fa-caret-down"></i>', 'Rotation');
+        toIconOnly(document.getElementById('changeImageBtn'), '<i class="fas fa-image"></i>', "Changer l'image");
         
         // Rotation dropdown toggle
         document.getElementById('rotationBtn').addEventListener('click', (e) => {
@@ -1780,6 +1781,55 @@ class NewsletterEditor {
                 }
             }
         });
+
+        // Change image button — replace current image source without altering other tools
+        const changeImageBtn = document.getElementById('changeImageBtn');
+        if (changeImageBtn) {
+            changeImageBtn.addEventListener('click', () => {
+                if (!this.currentEditingImage) return;
+                const input = document.createElement('input');
+                input.type = 'file';
+                input.accept = 'image/*';
+                input.onchange = async (e) => {
+                    const file = e.target.files && e.target.files[0];
+                    if (!file) return;
+                    const applySrc = (dataUrl) => {
+                        try {
+                            this.currentEditingImage.src = dataUrl;
+                            if (file && file.name) this.currentEditingImage.alt = file.name;
+                            this.currentEditingImage.dataset.originalSrc = dataUrl;
+                            this.originalImageSrc = dataUrl;
+                            // Reset transforms/sizing for a clean state; user can resize again
+                            this.currentEditingImage.style.transform = 'none';
+                            this.currentEditingImage.style.width = 'auto';
+                            this.currentEditingImage.style.height = 'auto';
+                            // Update stored natural dimensions once loaded
+                            const imgRef = this.currentEditingImage;
+                            const onLoad = () => {
+                                this.originalImageWidth = imgRef.naturalWidth;
+                                this.originalImageHeight = imgRef.naturalHeight;
+                                imgRef.removeEventListener('load', onLoad);
+                                this.saveState();
+                                this.updateLastModified();
+                                this.autoSaveToLocalStorage();
+                                this.lastAction = 'Image remplacée';
+                            };
+                            imgRef.addEventListener('load', onLoad);
+                        } catch (_) { /* no-op */ }
+                    };
+                    try {
+                        const dataUrl = await this.compressImageFile(file, { maxWidth: 1600, maxHeight: 1200, quality: 0.9 });
+                        applySrc(dataUrl);
+                    } catch (_) {
+                        const reader = new FileReader();
+                        reader.onload = (ev) => applySrc(ev.target.result);
+                        reader.readAsDataURL(file);
+                    }
+                };
+                input.click();
+            });
+        }
+
         
         // Crop image button
         document.getElementById('cropImageBtn').addEventListener('click', () => {
