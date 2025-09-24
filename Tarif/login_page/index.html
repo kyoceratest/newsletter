@@ -5,11 +5,12 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Page de Tarif</title>
     <link rel="stylesheet" href="styles/dye-pattern.css">
+    <script src="scripts/header-date.js" defer></script>
 </head>
 <body>
     <header>
         <img src="logo.svg" alt="Logo" class="logo">
-        <h1>Bienvenue sur la Page de Tarif</h1>
+        <h1 id="tarifHeading">Bienvenue sur la Page de Tarif</h1>
     </header>
     <main>
         <form id="roleForm">
@@ -35,7 +36,7 @@
         document.getElementById('roleForm').addEventListener('submit', function(e) {
             e.preventDefault();
             const role = document.getElementById('role').value; // Now "Tarif Grossiste", etc.
-const password = document.getElementById('password').value;
+            const password = document.getElementById('password').value;
 
             // Mot de passe par rôle (à adapter selon votre logique réelle)
             const passwords = {
