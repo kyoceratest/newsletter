@@ -1064,6 +1064,13 @@ body {
     width: 100%;
 }
 
+.loaded-content,
+#loadedContent {
+    /* Provide positioning context for absolutely positioned elements
+       coming from the editor (mirrors #editableContent { position: relative }) */
+    position: relative;
+}
+
 .editable-content {
     background-color: #ffffff;
     border: 2px dashed #007bff;

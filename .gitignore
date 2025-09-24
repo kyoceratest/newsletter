@@ -1,2 +1,4 @@
 *.crswap
 *.mp4
+*.md
+/.vscode

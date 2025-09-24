@@ -39,17 +39,32 @@ document.addEventListener('DOMContentLoaded', function () {
 
     // Extract a title, prioritizing an element styled with font-size: 52px
     function extractTitleFromDoc(doc) {
-        // 1) Look for explicit inline style font-size:52px
-        let el = doc.querySelector('span[style*="font-size: 52px"], span[style*="font-size:52px"], [style*="font-size: 52px"], [style*="font-size:52px"]');
-        if (el && (el.innerText || el.textContent)) return (el.innerText || el.textContent).trim();
+        const getText = (node) => (node && (node.innerText || node.textContent) || '').replace(/\s+/g, ' ').replace(/\u00a0/g, ' ').trim();
 
-        // 2) Look for font tag with size="7"
-        el = doc.querySelector('font[size="7"]');
-        if (el && (el.innerText || el.textContent)) return (el.innerText || el.textContent).trim();
+        // 1) Prefer any element with inline 52px style (case/spacing tolerant). Pick the longest meaningful text.
+        const styleCandidates = Array.from(
+            doc.querySelectorAll('[style*="font-size:52px" i], [style*="font-size: 52px" i]')
+        );
+        const bestStyle = styleCandidates
+            .map(n => ({ n, t: getText(n) }))
+            .filter(x => x.t && x.t.length >= 3)
+            .sort((a, b) => b.t.length - a.t.length)[0];
+        if (bestStyle) return bestStyle.t;
 
-        // 3) Fallback to headline tags
-        el = doc.querySelector('h1, h2, h3');
-        if (el && (el.innerText || el.textContent)) return (el.innerText || el.textContent).trim();
+        // 2) Elements marked by class names used in our CSS/editor
+        const classEl = doc.querySelector('.sujette-title, .font-size-52');
+        const classTxt = getText(classEl);
+        if (classTxt) return classTxt;
+
+        // 3) Legacy <font size="7">
+        const fontEl = doc.querySelector('font[size="7"]');
+        const fontTxt = getText(fontEl);
+        if (fontTxt) return fontTxt;
+
+        // 4) Fallback to the first headline
+        const hEl = doc.querySelector('h1, h2, h3');
+        const hTxt = getText(hEl);
+        if (hTxt) return hTxt;
 
         return '';
     }
@@ -58,6 +73,23 @@ document.addEventListener('DOMContentLoaded', function () {
     async function syncDropdownLabels() {
         if (!selectEl) return;
         const opts = Array.from(selectEl.options).filter(o => o.value && o.value.endsWith('.html'));
+        const stripHtml = (s) => (s || '').replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
+        const extractFromRawHtml = (raw) => {
+            // Look for any tag with inline style containing font-size: 52px and capture inner text
+            const rx = /<([a-z0-9]+)[^>]*style[^>]*font-size\s*:\s*52px[^>]*>([\s\S]*?)<\/\1>/i;
+            const m = raw.match(rx);
+            if (m && m[2]) {
+                const txt = stripHtml(m[2]);
+                if (txt && txt.length >= 3) return txt;
+            }
+            // Fallback to first h1/h2/h3 in raw
+            const h = raw.match(/<(h1|h2|h3)[^>]*>([\s\S]*?)<\/\1>/i);
+            if (h && h[2]) {
+                const txt = stripHtml(h[2]);
+                if (txt && txt.length >= 3) return txt;
+            }
+            return '';
+        };
         for (const opt of opts) {
             try {
                 let syncFile = opt.value;
@@ -67,7 +99,8 @@ document.addEventListener('DOMContentLoaded', function () {
                     const html = await res.text();
                     const parser = new DOMParser();
                     const doc = parser.parseFromString(html, 'text/html');
-                    const title = extractTitleFromDoc(doc);
+                    let title = extractTitleFromDoc(doc);
+                    if (!title) title = extractFromRawHtml(html);
                     if (title) opt.textContent = title;
                 }
             } catch (e) {
@@ -76,33 +109,41 @@ document.addEventListener('DOMContentLoaded', function () {
         }
     }
 
-    // Kick off label sync on load, then load content based on URL parameter
-    syncDropdownLabels().then(() => {
-        if (selectEl) {
-            const page = getUrlParameter('page');
-            let contentFile = '';
-            if (page) {
-                switch(page) {
-                    case '1':
-                        contentFile = 'teteSuperieure.html'; // Tête supérieure
-                        break;
-                    case '2':
-                        contentFile = 'contenuDeGauche.html'; // Contenu de gauche
-                        break;
-                    case '3':
-                        contentFile = 'contenuCentral.html'; // Contenu central
-                        break;
-                    case '4':
-                        contentFile = 'contenuDeDroite.html'; // Contenu de droite
-                        break;
-                    default:
-                        contentFile = '';
-                }
-                if (contentFile) {
-                    selectEl.value = contentFile;
-                    loadSelected(contentFile);
-                }
+    // 1) Load content immediately based on URL parameter (so links from index.html show content directly)
+    if (selectEl) {
+        const page = getUrlParameter('page');
+        let contentFile = '';
+        if (page) {
+            switch(page) {
+                case '1':
+                    contentFile = 'teteSuperieure.html'; // Tête supérieure
+                    break;
+                case '2':
+                    contentFile = 'contenuDeGauche.html'; // Contenu de gauche
+                    break;
+                case '3':
+                    contentFile = 'contenuCentral.html'; // Contenu central
+                    break;
+                case '4':
+                    contentFile = 'contenuDeDroite.html'; // Contenu de droite
+                    break;
+                default:
+                    contentFile = '';
             }
+            if (contentFile) {
+                // Set the dropdown to the selected file and load immediately
+                selectEl.value = contentFile;
+                loadSelected(contentFile);
+            }
+        }
+    }
+
+    // 2) Run label sync in parallel (no need to block initial load)
+    syncDropdownLabels().then(() => {
+        // After labels sync, keep the dropdown selection consistent if a page was preselected
+        if (selectEl) {
+            const current = selectEl.value;
+            if (current) selectEl.value = current;
         }
     });
 
@@ -142,6 +183,15 @@ document.addEventListener('DOMContentLoaded', function () {
             while (wrapper.firstChild) {
                 targetEl.appendChild(wrapper.firstChild);
             }
+
+            // Update the page accent title from the loaded document
+            try {
+                const extracted = extractTitleFromDoc(doc) || '';
+                const titleHost = document.querySelector('.title-accent');
+                if (titleHost && extracted) {
+                    titleHost.textContent = extracted;
+                }
+            } catch (_) {}
 
             statusEl.textContent = '';
         } catch (e) {

@@ -1298,6 +1298,14 @@ class NewsletterEditor {
             } catch (_) {}
         }
 
+        // If no saved range, try to compute from the last mouse position inside the editor
+        if (!range && this.lastMousePosition && typeof this.lastMousePosition.x === 'number') {
+            try {
+                const r = this.computeRangeFromPoint(this.lastMousePosition.x, this.lastMousePosition.y);
+                if (r) range = r.cloneRange ? r.cloneRange() : r; // support native Range
+            } catch (_) {}
+        }
+
         // Otherwise, use current selection if inside editor
         if (!range && selection && selection.rangeCount > 0) {
             const r = selection.getRangeAt(0);
@@ -1334,6 +1342,52 @@ class NewsletterEditor {
             selection.addRange(newRange);
             this.lastMouseRange = null;
         }
+    }
+
+    // Compute an insertion Range from viewport coordinates within the editor
+    computeRangeFromPoint(x, y) {
+        const editableEl = document.getElementById('editableContent');
+        if (!editableEl) return null;
+        const containerRect = editableEl.getBoundingClientRect();
+        if (x < containerRect.left || x > containerRect.right || y < containerRect.top || y > containerRect.bottom) {
+            return null;
+        }
+
+        const snapRangeToBlockBoundary = (node) => {
+            if (!node) return null;
+            let child = node.nodeType === Node.ELEMENT_NODE ? node : node.parentElement;
+            while (child && child.parentElement !== editableEl) {
+                child = child.parentElement;
+            }
+            const range = document.createRange();
+            if (!child || child === editableEl) {
+                const last = editableEl.lastChild;
+                if (last) range.setStartAfter(last); else range.setStart(editableEl, editableEl.childNodes.length);
+                range.collapse(true);
+                return range;
+            }
+            const childRect = child.getBoundingClientRect();
+            const placeAfter = y > (childRect.top + childRect.height / 2);
+            if (placeAfter) range.setStartAfter(child); else range.setStartBefore(child);
+            range.collapse(true);
+            return range;
+        };
+
+        if (document.caretRangeFromPoint) {
+            const r = document.caretRangeFromPoint(x, y);
+            if (r) return snapRangeToBlockBoundary(r.startContainer);
+        }
+        if (document.caretPositionFromPoint) {
+            const pos = document.caretPositionFromPoint(x, y);
+            if (pos && pos.offsetNode != null) {
+                return snapRangeToBlockBoundary(pos.offsetNode);
+            }
+        }
+        const target = document.elementFromPoint(x, y);
+        if (!target) return null;
+        const container = target.closest('#editableContent');
+        if (!container) return null;
+        return snapRangeToBlockBoundary(target);
     }
     restoreSelection() {
         if (!this.savedSelection) return;
