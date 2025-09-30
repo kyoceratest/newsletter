@@ -55,7 +55,8 @@ document.addEventListener('DOMContentLoaded', function () {
       source: 'teteSuperieure.html',
       titleSelector: 'h1, h2, h3',
       imageSelector: 'img',
-      descSelector: 'p span[style*="font-size: 14px"]',
+      // Hero résumé follows the 22px "Résumé" style from the editor
+      descSelector: 'p span[style*="font-size: 22px"]',
       targetTitle: '.title-accent',
       targetImage: null, // locked: hero image fixed to Image/teteSuperieure.png
       targetDesc: '.lead',
