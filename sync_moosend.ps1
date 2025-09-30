@@ -193,4 +193,19 @@ if ($droiteHtml) {
 
 Set-Content -Path $templatePath -Value $templateHtml -Encoding UTF8
 
+# Auto-purge jsDelivr cache for the four newsletter images so Moosend fetches the latest files
+try {
+  $purgePaths = @(
+    '/gh/kyoceratest/newsletter@main/Image/teteSuperieure.png',
+    '/gh/kyoceratest/newsletter@main/Image/contenuDeGauche.png',
+    '/gh/kyoceratest/newsletter@main/Image/contenuCentral.png',
+    '/gh/kyoceratest/newsletter@main/Image/contenuDeDroite.png'
+  )
+  $bodyJson = @{ path = $purgePaths } | ConvertTo-Json
+  Invoke-RestMethod -Method Post -Uri 'https://purge.jsdelivr.net/' -ContentType 'application/json' -Body $bodyJson | Out-Null
+  Write-Host "[sync_moosend.ps1] Purged jsDelivr cache for 4 images" -ForegroundColor Yellow
+} catch {
+  Write-Warning "[sync_moosend.ps1] jsDelivr purge failed (continuing)"
+}
+
 Write-Host "[sync_moosend.ps1] Sync completed. Updated moosend_template.html" -ForegroundColor Green
