@@ -524,6 +524,11 @@ body {
     z-index: 950;
 }
 
+.section-options {
+    margin: 0;
+    padding: 0;
+}
+
 .option-btn {
     display: block;
     width: 100%;
@@ -618,6 +623,39 @@ body {
     font-size: 12px;
     color: #495057;
     transition: all 0.2s ease;
+}
+
+/* ==========================================
+   Two-column layout: adaptive center divider
+   - Minimal CSS-only enhancement
+   - No HTML or JS changes
+   - Adapts line visibility to background
+   - Scoped to editor to avoid site-wide impact
+   ========================================== */
+.newsletter-editor .two-column-layout {
+  position: relative; /* provide positioning context for the divider */
+  /* Light grey lines at top and bottom (two lines) */
+  border-top: 1px solid #e0e0e0;
+  border-bottom: 1px solid #e0e0e0;
+}
+
+.newsletter-editor .two-column-layout::before {
+  content: "";
+  position: absolute;
+  /* Match the inline padding used by insertTwoColumnSection (20px) */
+  top: 20px;
+  bottom: 20px;
+  left: 50%;
+  width: 1px;
+  /* Use mid-gray with difference blend so it contrasts on both light/dark */
+  background: rgba(136, 136, 136, 0.9);
+  mix-blend-mode: difference;
+  pointer-events: none; /* purely decorative */
+}
+
+/* Remove drop shadow from two-column section columns (CSS-only, scoped) */
+.newsletter-editor .two-column-layout .column {
+  box-shadow: none !important;
 }
 
 .toolbar-btn:hover {
@@ -781,12 +819,79 @@ body {
     background-color: #ffffff;
     min-width: 250px;
     box-shadow: 0 8px 16px rgba(0,0,0,0.2);
-    z-index: 1002;
+    z-index: 6000; /* above rich text toolbar */
     border-radius: 4px;
     overflow: hidden;
     top: 100%;
     left: 0;
     margin-top: 5px;
+    max-height: 260px;
+    overflow-y: auto;
+}
+
+/* Flip dropdown to open upward when space is insufficient */
+.dropdown.drop-up .dropdown-content {
+  top: auto;
+  bottom: 100%;
+  margin-top: 0;
+  margin-bottom: 5px;
+}
+
+/* Compact theme-like color palette grid */
+.color-palette {
+  display: grid;
+  grid-auto-flow: column;              /* fill down then next column */
+  grid-template-rows: repeat(4, 22px); /* 4 shades per series - larger */
+  grid-auto-columns: 22px;             /* square size - larger */
+  gap: 8px;                            /* spacing between swatches */
+  padding: 10px;                       /* compact padding */
+}
+
+/* Single-row palette for standard colors */
+.color-palette.standard,
+.color-palette.primary {
+  grid-template-rows: repeat(1, 22px);
+}
+
+.palette-color {
+  width: 22px;
+  height: 22px;
+  border: 1px solid #ced4da;
+  border-radius: 2px;
+  cursor: pointer;
+}
+
+.palette-color:hover {
+  outline: 2px solid rgba(0,0,0,0.2);
+  outline-offset: 1px;
+}
+
+/* Palette headings inside dropdowns */
+.palette-heading {
+  font-size: 12px;
+  font-weight: 600;
+  color: #495057;
+  padding: 6px 10px 0 10px;
+}
+
+/* Larger layout specifically for color dropdowns */
+.dropdown-content.color-dropdown {
+  min-width: 460px;   /* wide enough to show all series columns */
+  max-height: 520px;  /* taller so most users see everything without scroll */
+  overflow-x: auto;   /* allow scrolling right if content is wider */
+}
+
+@media (max-width: 768px) {
+  .dropdown-content.color-dropdown {
+    min-width: 320px;
+    max-height: 420px;
+  }
+}
+
+.palette-divider {
+  height: 1px;
+  background: #e9ecef;
+  margin: 6px 8px 0 8px;
 }
 
 .dropdown-item {
@@ -1069,6 +1174,9 @@ body {
     /* Provide positioning context for absolutely positioned elements
        coming from the editor (mirrors #editableContent { position: relative }) */
     position: relative;
+    /* Match the editor's internal padding so absolute coordinates align 1:1
+       between modèle_newsletter.html (editor) and newsletter.html (viewer). */
+    padding: 30px;
 }
 
 .editable-content {
@@ -1114,16 +1222,127 @@ body {
     font-weight: bold;
 }
 
-/* Gallery Section */
-.gallery-section {
+/* Gallery Section Controls */
+.gallery-controls {
+    text-align: center;
+    margin-top: 20px;
+}
+
+.gallery-btn {
+    background-color: #007bff;
+    color: white;
+    border: none;
+    padding: 10px 20px;
+    border-radius: 5px;
+    cursor: pointer;
+    margin: 0 5px;
+    font-size: 14px;
+    font-weight: 500;
+    transition: all 0.3s ease;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.gallery-btn:hover {
+    background-color: #0056b3;
+    transform: translateY(-1px);
+    box-shadow: 0 4px 8px rgba(0, 123, 255, 0.3);
+}
+
+.gallery-btn i {
+    font-size: 16px;
+}
+
+/* Enhanced gallery section styling to match existing design */
+.newsletter-section.gallery-section {
     margin: 20px auto;
     padding: 30px;
     max-width: 1400px;
     width: 100%;
+    background-color: #f9f9f9;
     border: 1px solid #e0e0e0;
     border-radius: 8px;
-    background-color: #f9f9f9;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
     box-sizing: border-box;
+}
+
+.gallery-container {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 15px;
+    align-items: center;
+    margin-bottom: 20px;
+}
+
+.gallery-item {
+    text-align: center;
+    padding: 10px;
+    background: white;
+    border-radius: 6px;
+    box-shadow: 0 1px 5px rgba(0, 0, 0, 0.1);
+    transition: all 0.3s ease;
+    position: relative;
+}
+
+.gallery-item:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+}
+
+.gallery-item img {
+    width: 100%;
+    height: 150px;
+    object-fit: cover;
+    border-radius: 4px;
+    transition: transform 0.3s ease;
+}
+
+.gallery-item:hover img {
+    transform: scale(1.05);
+}
+
+.gallery-item p {
+    margin: 10px 0 0 0;
+    font-size: 14px;
+    color: #666;
+    font-weight: 500;
+}
+
+/* Responsive gallery adjustments */
+@media (max-width: 768px) {
+    .newsletter-section.gallery-section {
+        margin: 10px;
+        padding: 20px;
+    }
+
+    .gallery-grid {
+        gap: 15px;
+    }
+
+    .gallery-grid .gallery-item {
+        flex: 0 0 250px; /* Smaller width on mobile - increased from 180px */
+        max-width: 250px;
+    }
+
+    .gallery-item {
+        width: 250px;
+    }
+}
+
+@media (max-width: 480px) {
+    .gallery-grid .gallery-item {
+        flex: 0 0 200px; /* Even smaller on very small screens - increased from 150px */
+        max-width: 200px;
+    }
+
+    .gallery-item {
+        width: 200px;
+    }
+
+    .gallery-grid {
+        gap: 10px;
+    }
 }
 
 .gallery-title {
@@ -1133,30 +1352,30 @@ body {
     color: #333;
     pointer-events: none;
     user-select: none;
+    text-align: center;
 }
 
 .gallery-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+    display: flex;
+    flex-wrap: wrap;
     gap: 25px;
     margin: 20px auto 0;
     padding: 0;
     max-width: 1600px;
     width: 100%;
     justify-content: center;
-    justify-items: center;
+    align-items: flex-start;
 }
 
-/* Ensure single image is centered */
-.gallery-grid > .gallery-item:only-child {
-    grid-column: 1 / -1;
-    max-width: 400px; /* Adjust this value as needed */
-    margin: 0 auto;
+/* Ensure gallery items are properly sized and centered */
+.gallery-grid .gallery-item {
+    flex: 0 0 300px; /* Fixed width for consistent sizing - increased from 220px */
+    max-width: 300px;
 }
 
 .gallery-item {
     position: relative;
-    width: 100%;
+    width: 300px; /* Increased from 220px */
     border-radius: 8px;
     box-shadow: 0 2px 4px rgba(0,0,0,0.1);
     transition: all 0.3s ease;
@@ -1165,7 +1384,7 @@ body {
     overflow: hidden;
     display: flex;
     flex-direction: column;
-    margin: 0 auto;
+    margin: 0;
     height: auto;
     padding-bottom: 0;
 }
@@ -1202,20 +1421,21 @@ body {
 .gallery-image-container {
     position: relative;
     width: 100%;
-    padding-bottom: 100%; /* 1:1 Aspect Ratio */
+    padding-bottom: 0; /* Preserve original image aspect ratio */
     overflow: hidden;
+    background-color: #f7f7f7; /* subtle letterbox background */
 }
 
 .gallery-image-wrapper {
     display: flex;
     flex-direction: column;
-    height: 100%;
+    height: auto; /* let height follow content (image + description) */
 }
 
 .gallery-item img {
     width: 100%;
-    height: 100%;
-    object-fit: cover;
+    height: auto;            /* keep natural aspect ratio */
+    object-fit: contain;     /* no cropping inside tile */
     transition: transform 0.3s ease;
     display: block;
 }
@@ -1317,6 +1537,80 @@ body {
 .gallery-section [contenteditable="true"] {
     pointer-events: none;
     user-select: none;
+}
+
+/* Hide editing elements in final HTML output (non-editor pages) */
+body:not(.newsletter-editor) .add-image-placeholder,
+body:not(.newsletter-editor) .add-more-btn,
+body:not(.newsletter-editor) .gallery-upload {
+    display: none !important;
+}
+
+/* Hide all editor-specific elements in final output */
+body:not(.newsletter-editor) .editor-sidebar,
+body:not(.newsletter-editor) .rich-text-toolbar,
+body:not(.newsletter-editor) .image-toolbar,
+body:not(.newsletter-editor) .section-toolbar,
+body:not(.newsletter-editor) .table-toolbar,
+body:not(.newsletter-editor) .video-toolbar,
+body:not(.newsletter-editor) .resize-handle,
+body:not(.newsletter-editor) .rotation-handle,
+body:not(.newsletter-editor) .image-delete-btn,
+body:not(.newsletter-editor) .gallery-upload {
+    display: none !important;
+}
+
+/* Disable ALL editing capabilities in final output */
+body:not(.newsletter-editor) [contenteditable],
+body:not(.newsletter-editor) [contenteditable="true"],
+body:not(.newsletter-editor) * {
+    -webkit-user-select: none !important;
+    -moz-user-select: none !important;
+    -ms-user-select: none !important;
+    user-select: none !important;
+    pointer-events: auto !important; /* Allow normal interactions like links */
+}
+
+/* Specifically disable contenteditable functionality */
+body:not(.newsletter-editor) [contenteditable],
+body:not(.newsletter-editor) [contenteditable="true"] {
+    -webkit-user-modify: read-only !important;
+    -moz-user-modify: read-only !important;
+    pointer-events: none !important; /* Disable editing interactions */
+    outline: none !important; /* Remove focus outline */
+    caret-color: transparent !important; /* Hide text cursor */
+}
+
+/* Remove contenteditable attribute visually and functionally */
+body:not(.newsletter-editor) [contenteditable]:before {
+    content: none !important;
+}
+
+/* Ensure no text selection or editing is possible */
+body:not(.newsletter-editor) {
+    -webkit-user-select: none !important;
+    -moz-user-select: none !important;
+    -ms-user-select: none !important;
+    user-select: none !important;
+}
+
+/* Allow normal interactions for links and buttons but disable text editing */
+body:not(.newsletter-editor) a,
+body:not(.newsletter-editor) button {
+    pointer-events: auto !important;
+    -webkit-user-select: none !important;
+    -moz-user-select: none !important;
+    -ms-user-select: none !important;
+    user-select: none !important;
+}
+
+/* Ensure gallery items display properly without editing elements */
+body:not(.newsletter-editor) .gallery-grid {
+    justify-content: center;
+}
+
+body:not(.newsletter-editor) .gallery-item {
+    cursor: default;
 }
 
 .editable-content img {

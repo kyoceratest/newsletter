@@ -147,6 +147,24 @@ document.addEventListener('DOMContentLoaded', function () {
         }
     });
 
+    // 2b) Periodically re-sync dropdown labels so they stay up-to-date with content titles
+    // This ensures that when an editor updates a section title (e.g., applying 52px style),
+    // the dropdown reflects the latest title without a manual refresh.
+    let dropdownLabelSyncInterval = null;
+    try {
+        dropdownLabelSyncInterval = setInterval(() => {
+            const current = selectEl ? selectEl.value : '';
+            syncDropdownLabels().then(() => {
+                // Preserve the current selection after labels update
+                if (selectEl && current) selectEl.value = current;
+            });
+        }, 5000);
+        // Clean up on page unload
+        window.addEventListener('beforeunload', () => {
+            if (dropdownLabelSyncInterval) clearInterval(dropdownLabelSyncInterval);
+        });
+    } catch (_) { /* no-op */ }
+
     async function loadSelected(path) {
         if (!path) { targetEl.innerHTML = ''; statusEl.textContent = ''; return; }
         statusEl.textContent = 'Chargement...';

@@ -60,9 +60,9 @@
                         <span></span>
                         <span></span>
             </button>
-                    </div>
                 </div>
-                        </div>
+            </div>
+        </div>
     </header>
 
     <!-- Main Content Wrapper -->
@@ -127,7 +127,7 @@
                         <i class="fas fa-quote-left"></i> Promotion
                         </button>
                     <button class="option-btn" id="ctaSectionBtn">
-                        <i class="fas fa-bullhorn"></i> Webinars
+                        <i class="fas fa-bullhorn"></i> Annonce
                         </button>
                     <button class="option-btn" id="contactSectionBtn">
                         <i class="fas fa-address-card"></i> Contact
@@ -169,13 +169,19 @@
 
             <select id="fontSize" class="toolbar-select">
                 <option value="52">Sujette </option>
-                <option value="14">Résumé </option>
+                <option value="22">Résumé </option>
                <option value="48">Titre G </option>
                <option value="36">Titre P </option>
                <option value="26">S-titre G</option>
                <option value="20">S-titre P</option>
                <option value="16">Corps G </option>
                <option value="14">Corps P </option>
+            </select>
+            <select id="lineHeight" class="toolbar-select" title="Interligne">
+                <option value="">Interligne</option>
+                <option value="1.0">1.0</option>
+                <option value="1.5">1.5</option>
+                <option value="2.0">2.0</option>
             </select>
     </div>
 
@@ -196,22 +202,49 @@
                 <button class="toolbar-btn" id="textColorDropdownBtn" title="Couleur du texte">
                     <i class="fas fa-font" style="color: black;"></i>
                 </button>
-                <div class="dropdown-content" id="textColorDropdownContent" style="display: none;">
-                    <input type="color" id="textColorPicker" class="toolbar-color" value="#000000">
+                <div class="dropdown-content color-dropdown" id="textColorDropdownContent" style="display: none;">
+                    <div class="palette-heading">Couleurs principales</div>
+                    <div class="color-palette primary" id="textColorPrimaryPalette">
+                        <div class="palette-color" style="background-color: #000000;" data-color="#000000"></div>
+                        <div class="palette-color" style="background-color: #FFFFFF;" data-color="#FFFFFF"></div>
+                        <div class="palette-color" style="background-color: #6E3CBE;" data-color="#6E3CBE"></div>
+                        <div class="palette-color" style="background-color: #0A9BCD;" data-color="#0A9BCD"></div>
+                        <div class="palette-color" style="background-color: #F5B400;" data-color="#F5B400"></div>
+                        <div class="palette-color" style="background-color: #F06400;" data-color="#F06400"></div>
+                        <div class="palette-color" style="background-color: #00B176;" data-color="#00B176"></div>
+                    </div>
+                    <div class="palette-heading">Couleurs du thème</div>
                     <div class="color-palette" id="textColorPalette">
-
-                        <div class="palette-color" style="background-color: #6e3cbe;" data-color="#6e3cbe"></div>
-                        <div class="palette-color" style="background-color: #0a9bcd;" data-color="#0a9bcd"></div>
-                        <div class="palette-color" style="background-color: #f5b400;" data-color="#f5b400"></div>
-                        <div class="palette-color" style="background-color: #f06400;" data-color="#f06400"></div>
-                        <div class="palette-color" style="background-color: #00b176;" data-color="#00b176"></div>
-                        <div class="palette-color" style="background-color: #000000;" data-color="#000000"></div>
-                        <div class="palette-color" style="background-color: #ffffff;" data-color="#ffffff"></div>
-
-                        <div class="palette-color" style="background-color: #f06400;" data-color="#f06400"></div>
-                        <div class="palette-color" style="background-color: #00b176;" data-color="#00b176"></div>
-                        <div class="palette-color" style="background-color: #000000;" data-color="#000000"></div>
-                        <div class="palette-color" style="background-color: #ffffff;" data-color="#ffffff"></div>
+                        <!-- Grey -->
+                        <div class="palette-color" style="background-color: #585858;" data-color="#585858"></div>
+                        <div class="palette-color" style="background-color: #7E7E7E;" data-color="#7E7E7E"></div>
+                        <div class="palette-color" style="background-color: #A9A9A9;" data-color="#A9A9A9"></div>
+                        <div class="palette-color" style="background-color: #D4D4D4;" data-color="#D4D4D4"></div>
+                        <!-- Purple -->
+                        <div class="palette-color" style="background-color: #925ED2;" data-color="#925ED2"></div>
+                        <div class="palette-color" style="background-color: #AE87DE;" data-color="#AE87DE"></div>
+                        <div class="palette-color" style="background-color: #C9AFE9;" data-color="#C9AFE9"></div>
+                        <div class="palette-color" style="background-color: #E4D7F4;" data-color="#E4D7F4"></div>
+                        <!-- Blue -->
+                        <div class="palette-color" style="background-color: #00B1DB;" data-color="#00B1DB"></div>
+                        <div class="palette-color" style="background-color: #4AC5E5;" data-color="#4AC5E5"></div>
+                        <div class="palette-color" style="background-color: #8DD9EE;" data-color="#8DD9EE"></div>
+                        <div class="palette-color" style="background-color: #C7ECF6;" data-color="#C7ECF6"></div>
+                        <!-- Yellow -->
+                        <div class="palette-color" style="background-color: #FFC200;" data-color="#FFC200"></div>
+                        <div class="palette-color" style="background-color: #FFD14E;" data-color="#FFD14E"></div>
+                        <div class="palette-color" style="background-color: #FFE18E;" data-color="#FFE18E"></div>
+                        <div class="palette-color" style="background-color: #FFF0C8;" data-color="#FFF0C8"></div>
+                        <!-- Orange -->
+                        <div class="palette-color" style="background-color: #FF7C03;" data-color="#FF7C03"></div>
+                        <div class="palette-color" style="background-color: #FF9E59;" data-color="#FF9E59"></div>
+                        <div class="palette-color" style="background-color: #FFBF92;" data-color="#FFBF92"></div>
+                        <div class="palette-color" style="background-color: #FFDFC9;" data-color="#FFDFC9"></div>
+                        <!-- Green -->
+                        <div class="palette-color" style="background-color: #00C58D;" data-color="#00C58D"></div>
+                        <div class="palette-color" style="background-color: #2FD3AB;" data-color="#2FD3AB"></div>
+                        <div class="palette-color" style="background-color: #84E3C7;" data-color="#84E3C7"></div>
+                        <div class="palette-color" style="background-color: #C4F0E3;" data-color="#C4F0E3"></div>
                     </div>
                 </div>
             </div>
@@ -219,16 +252,49 @@
                 <button class="toolbar-btn" id="bgColorDropdownBtn" title="Couleur de fond">
                     <i class="fas fa-fill-drip" style="background-color: yellow;"></i>
                 </button>
-                <div class="dropdown-content" id="bgColorDropdownContent" style="display: none;">
-                    <input type="color" id="bgColorPicker" class="toolbar-color" value="#ffff00">
-                    <div class="color-palette" id="bgColorPalette">
-                        <div class="palette-color" style="background-color: #6e3cbe;" data-color="#6e3cbe"></div>
-                        <div class="palette-color" style="background-color: #0a9bcd;" data-color="#0a9bcd"></div>
-                        <div class="palette-color" style="background-color: #f5b400;" data-color="#f5b400"></div>
-                        <div class="palette-color" style="background-color: #f06400;" data-color="#f06400"></div>
-                        <div class="palette-color" style="background-color: #00b176;" data-color="#00b176"></div>
+                <div class="dropdown-content color-dropdown" id="bgColorDropdownContent" style="display: none;">
+                    <div class="palette-heading">Couleurs principales</div>
+                    <div class="color-palette primary" id="bgColorPrimaryPalette">
                         <div class="palette-color" style="background-color: #000000;" data-color="#000000"></div>
-                        <div class="palette-color" style="background-color: #ffffff;" data-color="#ffffff"></div>
+                        <div class="palette-color" style="background-color: #FFFFFF;" data-color="#FFFFFF"></div>
+                        <div class="palette-color" style="background-color: #6E3CBE;" data-color="#6E3CBE"></div>
+                        <div class="palette-color" style="background-color: #0A9BCD;" data-color="#0A9BCD"></div>
+                        <div class="palette-color" style="background-color: #F5B400;" data-color="#F5B400"></div>
+                        <div class="palette-color" style="background-color: #F06400;" data-color="#F06400"></div>
+                        <div class="palette-color" style="background-color: #00B176;" data-color="#00B176"></div>
+                    </div>
+                    <div class="palette-heading">Couleurs du thème</div>
+                    <div class="color-palette" id="bgColorPalette">
+                        <!-- Grey -->
+                        <div class="palette-color" style="background-color: #585858;" data-color="#585858"></div>
+                        <div class="palette-color" style="background-color: #7E7E7E;" data-color="#7E7E7E"></div>
+                        <div class="palette-color" style="background-color: #A9A9A9;" data-color="#A9A9A9"></div>
+                        <div class="palette-color" style="background-color: #D4D4D4;" data-color="#D4D4D4"></div>
+                        <!-- Purple -->
+                        <div class="palette-color" style="background-color: #925ED2;" data-color="#925ED2"></div>
+                        <div class="palette-color" style="background-color: #AE87DE;" data-color="#AE87DE"></div>
+                        <div class="palette-color" style="background-color: #C9AFE9;" data-color="#C9AFE9"></div>
+                        <div class="palette-color" style="background-color: #E4D7F4;" data-color="#E4D7F4"></div>
+                        <!-- Blue -->
+                        <div class="palette-color" style="background-color: #00B1DB;" data-color="#00B1DB"></div>
+                        <div class="palette-color" style="background-color: #4AC5E5;" data-color="#4AC5E5"></div>
+                        <div class="palette-color" style="background-color: #8DD9EE;" data-color="#8DD9EE"></div>
+                        <div class="palette-color" style="background-color: #C7ECF6;" data-color="#C7ECF6"></div>
+                        <!-- Yellow -->
+                        <div class="palette-color" style="background-color: #FFC200;" data-color="#FFC200"></div>
+                        <div class="palette-color" style="background-color: #FFD14E;" data-color="#FFD14E"></div>
+                        <div class="palette-color" style="background-color: #FFE18E;" data-color="#FFE18E"></div>
+                        <div class="palette-color" style="background-color: #FFF0C8;" data-color="#FFF0C8"></div>
+                        <!-- Orange -->
+                        <div class="palette-color" style="background-color: #FF7C03;" data-color="#FF7C03"></div>
+                        <div class="palette-color" style="background-color: #FF9E59;" data-color="#FF9E59"></div>
+                        <div class="palette-color" style="background-color: #FFBF92;" data-color="#FFBF92"></div>
+                        <div class="palette-color" style="background-color: #FFDFC9;" data-color="#FFDFC9"></div>
+                        <!-- Green -->
+                        <div class="palette-color" style="background-color: #00C58D;" data-color="#00C58D"></div>
+                        <div class="palette-color" style="background-color: #2FD3AB;" data-color="#2FD3AB"></div>
+                        <div class="palette-color" style="background-color: #84E3C7;" data-color="#84E3C7"></div>
+                        <div class="palette-color" style="background-color: #C4F0E3;" data-color="#C4F0E3"></div>
                     </div>
                 </div>
             </div>
@@ -274,16 +340,49 @@
                 <button class="table-tool" id="tableBgColorDropdownBtn" title="Couleur de fond du tableau">
                     <i class="fas fa-fill-drip" style="background-color: #ffffff;"></i>
                 </button>
-                <div class="dropdown-content" id="tableBgColorDropdownContent" style="display: none;">
-                    <input type="color" id="tableBgColorPicker" class="toolbar-color" value="#ffffff">
-                    <div class="color-palette" id="tableBgColorPalette">
-                        <div class="palette-color" style="background-color: #6e3cbe;" data-color="#6e3cbe"></div>
-                        <div class="palette-color" style="background-color: #0a9bcd;" data-color="#0a9bcd"></div>
-                        <div class="palette-color" style="background-color: #f5b400;" data-color="#f5b400"></div>
-                        <div class="palette-color" style="background-color: #f06400;" data-color="#f06400"></div>
-                        <div class="palette-color" style="background-color: #00b176;" data-color="#00b176"></div>
+                <div class="dropdown-content color-dropdown" id="tableBgColorDropdownContent" style="display: none;">
+                    <div class="palette-heading">Couleurs principales</div>
+                    <div class="color-palette primary" id="tableBgPrimaryPalette">
                         <div class="palette-color" style="background-color: #000000;" data-color="#000000"></div>
-                        <div class="palette-color" style="background-color: #ffffff;" data-color="#ffffff"></div>
+                        <div class="palette-color" style="background-color: #FFFFFF;" data-color="#FFFFFF"></div>
+                        <div class="palette-color" style="background-color: #6E3CBE;" data-color="#6E3CBE"></div>
+                        <div class="palette-color" style="background-color: #0A9BCD;" data-color="#0A9BCD"></div>
+                        <div class="palette-color" style="background-color: #F5B400;" data-color="#F5B400"></div>
+                        <div class="palette-color" style="background-color: #F06400;" data-color="#F06400"></div>
+                        <div class="palette-color" style="background-color: #00B176;" data-color="#00B176"></div>
+                    </div>
+                    <div class="palette-heading">Couleurs du thème</div>
+                    <div class="color-palette" id="tableBgColorPalette">
+                        <!-- Grey -->
+                        <div class="palette-color" style="background-color: #585858;" data-color="#585858"></div>
+                        <div class="palette-color" style="background-color: #7E7E7E;" data-color="#7E7E7E"></div>
+                        <div class="palette-color" style="background-color: #A9A9A9;" data-color="#A9A9A9"></div>
+                        <div class="palette-color" style="background-color: #D4D4D4;" data-color="#D4D4D4"></div>
+                        <!-- Purple -->
+                        <div class="palette-color" style="background-color: #925ED2;" data-color="#925ED2"></div>
+                        <div class="palette-color" style="background-color: #AE87DE;" data-color="#AE87DE"></div>
+                        <div class="palette-color" style="background-color: #C9AFE9;" data-color="#C9AFE9"></div>
+                        <div class="palette-color" style="background-color: #E4D7F4;" data-color="#E4D7F4"></div>
+                        <!-- Blue -->
+                        <div class="palette-color" style="background-color: #00B1DB;" data-color="#00B1DB"></div>
+                        <div class="palette-color" style="background-color: #4AC5E5;" data-color="#4AC5E5"></div>
+                        <div class="palette-color" style="background-color: #8DD9EE;" data-color="#8DD9EE"></div>
+                        <div class="palette-color" style="background-color: #C7ECF6;" data-color="#C7ECF6"></div>
+                        <!-- Yellow -->
+                        <div class="palette-color" style="background-color: #FFC200;" data-color="#FFC200"></div>
+                        <div class="palette-color" style="background-color: #FFD14E;" data-color="#FFD14E"></div>
+                        <div class="palette-color" style="background-color: #FFE18E;" data-color="#FFE18E"></div>
+                        <div class="palette-color" style="background-color: #FFF0C8;" data-color="#FFF0C8"></div>
+                        <!-- Orange -->
+                        <div class="palette-color" style="background-color: #FF7C03;" data-color="#FF7C03"></div>
+                        <div class="palette-color" style="background-color: #FF9E59;" data-color="#FF9E59"></div>
+                        <div class="palette-color" style="background-color: #FFBF92;" data-color="#FFBF92"></div>
+                        <div class="palette-color" style="background-color: #FFDFC9;" data-color="#FFDFC9"></div>
+                        <!-- Green -->
+                        <div class="palette-color" style="background-color: #00C58D;" data-color="#00C58D"></div>
+                        <div class="palette-color" style="background-color: #2FD3AB;" data-color="#2FD3AB"></div>
+                        <div class="palette-color" style="background-color: #84E3C7;" data-color="#84E3C7"></div>
+                        <div class="palette-color" style="background-color: #C4F0E3;" data-color="#C4F0E3"></div>
                     </div>
                 </div>
             </div>
@@ -349,7 +448,7 @@
                             <i class="fas fa-align-right"></i> Flotter à droite
                         </button>
                         <button class="dropdown-item" id="inlineBtn">
-                            <i class="fas fa-align-justify"></i> En ligne
+                            <i class="fas fa-align-center"></i> Centrer
                         </button>
     </div>
     </div>
@@ -386,6 +485,57 @@
             <button class="toolbar-btn" id="sectionAlignLeftBtn" title="Aligner à gauche"><i class="fas fa-align-left"></i></button>
             <button class="toolbar-btn" id="sectionAlignCenterBtn" title="Centrer"><i class="fas fa-align-center"></i></button>
             <button class="toolbar-btn" id="sectionAlignRightBtn" title="Aligner à droite"><i class="fas fa-align-right"></i></button>
+            <div class="toolbar-divider"></div>
+            <div class="dropdown">
+                <button class="toolbar-btn" id="sectionBgColorDropdownBtn" title="Couleur de fond de la section">
+                    <i class="fas fa-fill-drip" style="background-color: #ffffff;"></i>
+                </button>
+                <div class="dropdown-content color-dropdown" id="sectionBgColorDropdownContent" style="display: none;">
+                    <div class="palette-heading">Couleurs principales</div>
+                    <div class="color-palette primary" id="sectionBgPrimaryPalette">
+                        <div class="palette-color" style="background-color: #000000;" data-color="#000000"></div>
+                        <div class="palette-color" style="background-color: #FFFFFF;" data-color="#FFFFFF"></div>
+                        <div class="palette-color" style="background-color: #6E3CBE;" data-color="#6E3CBE"></div>
+                        <div class="palette-color" style="background-color: #0A9BCD;" data-color="#0A9BCD"></div>
+                        <div class="palette-color" style="background-color: #F5B400;" data-color="#F5B400"></div>
+                        <div class="palette-color" style="background-color: #F06400;" data-color="#F06400"></div>
+                        <div class="palette-color" style="background-color: #00B176;" data-color="#00B176"></div>
+                    </div>
+                    <div class="palette-heading">Couleurs du thème</div>
+                    <div class="color-palette" id="sectionBgColorPalette">
+                        <!-- Grey -->
+                        <div class="palette-color" style="background-color: #585858;" data-color="#585858"></div>
+                        <div class="palette-color" style="background-color: #7E7E7E;" data-color="#7E7E7E"></div>
+                        <div class="palette-color" style="background-color: #A9A9A9;" data-color="#A9A9A9"></div>
+                        <div class="palette-color" style="background-color: #D4D4D4;" data-color="#D4D4D4"></div>
+                        <!-- Purple -->
+                        <div class="palette-color" style="background-color: #925ED2;" data-color="#925ED2"></div>
+                        <div class="palette-color" style="background-color: #AE87DE;" data-color="#AE87DE"></div>
+                        <div class="palette-color" style="background-color: #C9AFE9;" data-color="#C9AFE9"></div>
+                        <div class="palette-color" style="background-color: #E4D7F4;" data-color="#E4D7F4"></div>
+                        <!-- Blue -->
+                        <div class="palette-color" style="background-color: #00B1DB;" data-color="#00B1DB"></div>
+                        <div class="palette-color" style="background-color: #4AC5E5;" data-color="#4AC5E5"></div>
+                        <div class="palette-color" style="background-color: #8DD9EE;" data-color="#8DD9EE"></div>
+                        <div class="palette-color" style="background-color: #C7ECF6;" data-color="#C7ECF6"></div>
+                        <!-- Yellow -->
+                        <div class="palette-color" style="background-color: #FFC200;" data-color="#FFC200"></div>
+                        <div class="palette-color" style="background-color: #FFD14E;" data-color="#FFD14E"></div>
+                        <div class="palette-color" style="background-color: #FFE18E;" data-color="#FFE18E"></div>
+                        <div class="palette-color" style="background-color: #FFF0C8;" data-color="#FFF0C8"></div>
+                        <!-- Orange -->
+                        <div class="palette-color" style="background-color: #FF7C03;" data-color="#FF7C03"></div>
+                        <div class="palette-color" style="background-color: #FF9E59;" data-color="#FF9E59"></div>
+                        <div class="palette-color" style="background-color: #FFBF92;" data-color="#FFBF92"></div>
+                        <div class="palette-color" style="background-color: #FFDFC9;" data-color="#FFDFC9"></div>
+                        <!-- Green -->
+                        <div class="palette-color" style="background-color: #00C58D;" data-color="#00C58D"></div>
+                        <div class="palette-color" style="background-color: #2FD3AB;" data-color="#2FD3AB"></div>
+                        <div class="palette-color" style="background-color: #84E3C7;" data-color="#84E3C7"></div>
+                        <div class="palette-color" style="background-color: #C4F0E3;" data-color="#C4F0E3"></div>
+                    </div>
+                </div>
+            </div>
             <div class="toolbar-divider"></div>
             <button class="toolbar-btn" id="sectionDeleteBtn" title="Supprimer"><i class="fas fa-trash"></i></button>
         </div>
@@ -425,17 +575,49 @@
                     <button class="toolbar-btn" id="webinarBgColorDropdownBtn" title="Couleur de fond">
                         <i class="fas fa-fill-drip" style="background-color: #a9a9a9;"></i>
                     </button>
-                    <div class="dropdown-content" id="webinarBgColorDropdownContent" style="display: none;">
-                        <input type="color" id="webinarBgColorPicker" class="toolbar-color" value="#a9a9a9">
-                        <div class="color-palette" id="webinarBgColorPalette">
-                            <div class="palette-color" style="background-color: #6e3cbe;" data-color="#6e3cbe"></div>
-                            <div class="palette-color" style="background-color: #0a9bcd;" data-color="#0a9bcd"></div>
-                            <div class="palette-color" style="background-color: #f5b400;" data-color="#f5b400"></div>
-                            <div class="palette-color" style="background-color: #f06400;" data-color="#f06400"></div>
-                            <div class="palette-color" style="background-color: #00b176;" data-color="#00b176"></div>
+                    <div class="dropdown-content color-dropdown" id="webinarBgColorDropdownContent" style="display: none;">
+                        <div class="palette-heading">Couleurs principales</div>
+                        <div class="color-palette primary" id="webinarBgPrimaryPalette">
                             <div class="palette-color" style="background-color: #000000;" data-color="#000000"></div>
-                            <div class="palette-color" style="background-color: #ffffff;" data-color="#ffffff"></div>
-                            <div class="palette-color" style="background-color: #a9a9a9;" data-color="#a9a9a9"></div>
+                            <div class="palette-color" style="background-color: #FFFFFF;" data-color="#FFFFFF"></div>
+                            <div class="palette-color" style="background-color: #6E3CBE;" data-color="#6E3CBE"></div>
+                            <div class="palette-color" style="background-color: #0A9BCD;" data-color="#0A9BCD"></div>
+                            <div class="palette-color" style="background-color: #F5B400;" data-color="#F5B400"></div>
+                            <div class="palette-color" style="background-color: #F06400;" data-color="#F06400"></div>
+                            <div class="palette-color" style="background-color: #00B176;" data-color="#00B176"></div>
+                        </div>
+                        <div class="palette-heading">Couleurs du thème</div>
+                        <div class="color-palette" id="webinarBgColorPalette">
+                            <!-- Grey -->
+                            <div class="palette-color" style="background-color: #585858;" data-color="#585858"></div>
+                            <div class="palette-color" style="background-color: #7E7E7E;" data-color="#7E7E7E"></div>
+                            <div class="palette-color" style="background-color: #A9A9A9;" data-color="#A9A9A9"></div>
+                            <div class="palette-color" style="background-color: #D4D4D4;" data-color="#D4D4D4"></div>
+                            <!-- Purple -->
+                            <div class="palette-color" style="background-color: #925ED2;" data-color="#925ED2"></div>
+                            <div class="palette-color" style="background-color: #AE87DE;" data-color="#AE87DE"></div>
+                            <div class="palette-color" style="background-color: #C9AFE9;" data-color="#C9AFE9"></div>
+                            <div class="palette-color" style="background-color: #E4D7F4;" data-color="#E4D7F4"></div>
+                            <!-- Blue -->
+                            <div class="palette-color" style="background-color: #00B1DB;" data-color="#00B1DB"></div>
+                            <div class="palette-color" style="background-color: #4AC5E5;" data-color="#4AC5E5"></div>
+                            <div class="palette-color" style="background-color: #8DD9EE;" data-color="#8DD9EE"></div>
+                            <div class="palette-color" style="background-color: #C7ECF6;" data-color="#C7ECF6"></div>
+                            <!-- Yellow -->
+                            <div class="palette-color" style="background-color: #FFC200;" data-color="#FFC200"></div>
+                            <div class="palette-color" style="background-color: #FFD14E;" data-color="#FFD14E"></div>
+                            <div class="palette-color" style="background-color: #FFE18E;" data-color="#FFE18E"></div>
+                            <div class="palette-color" style="background-color: #FFF0C8;" data-color="#FFF0C8"></div>
+                            <!-- Orange -->
+                            <div class="palette-color" style="background-color: #FF7C03;" data-color="#FF7C03"></div>
+                            <div class="palette-color" style="background-color: #FF9E59;" data-color="#FF9E59"></div>
+                            <div class="palette-color" style="background-color: #FFBF92;" data-color="#FFBF92"></div>
+                            <div class="palette-color" style="background-color: #FFDFC9;" data-color="#FFDFC9"></div>
+                            <!-- Green -->
+                            <div class="palette-color" style="background-color: #00C58D;" data-color="#00C58D"></div>
+                            <div class="palette-color" style="background-color: #2FD3AB;" data-color="#2FD3AB"></div>
+                            <div class="palette-color" style="background-color: #84E3C7;" data-color="#84E3C7"></div>
+                            <div class="palette-color" style="background-color: #C4F0E3;" data-color="#C4F0E3"></div>
                         </div>
                     </div>
                 </div>
@@ -465,6 +647,39 @@
         <div class="content-wrapper" style="position: relative; height: 100%;">
             <!-- Editable Content Area -->
             <div class="editable-content" id="editableContent" contenteditable="true" style="height: 100%; overflow-y: auto;">
+                <!-- Gallery Section -->
+                <div class="newsletter-section gallery-section" style="margin: 20px 20px; max-width: calc(100% - 40px); background-color: #f9f9f9; border-radius: 8px; padding: 20px; box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);">
+                    <div class="gallery-container" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 15px; align-items: center;">
+                        <div class="gallery-item" style="text-align: center; padding: 10px; background: white; border-radius: 6px; box-shadow: 0 1px 5px rgba(0, 0, 0, 0.1);">
+                            <img src="Image/placeholder.svg" alt="Gallery Image 1" style="width: 100%; height: 150px; object-fit: cover; border-radius: 4px;">
+                            <p style="margin: 10px 0 0 0; font-size: 14px; color: #666;">Image 1</p>
+                        </div>
+                        <div class="gallery-item" style="text-align: center; padding: 10px; background: white; border-radius: 6px; box-shadow: 0 1px 5px rgba(0, 0, 0, 0.1);">
+                            <img src="Image/placeholder.svg" alt="Gallery Image 2" style="width: 100%; height: 150px; object-fit: cover; border-radius: 4px;">
+                            <p style="margin: 10px 0 0 0; font-size: 14px; color: #666;">Image 2</p>
+                        </div>
+                        <div class="gallery-item" style="text-align: center; padding: 10px; background: white; border-radius: 6px; box-shadow: 0 1px 5px rgba(0, 0, 0, 0.1);">
+                            <img src="Image/placeholder.svg" alt="Gallery Image 3" style="width: 100%; height: 150px; object-fit: cover; border-radius: 4px;">
+                            <p style="margin: 10px 0 0 0; font-size: 14px; color: #666;">Image 3</p>
+                        </div>
+                        <div class="gallery-item" style="text-align: center; padding: 10px; background: white; border-radius: 6px; box-shadow: 0 1px 5px rgba(0, 0, 0, 0.1);">
+                            <img src="Image/placeholder.svg" alt="Gallery Image 4" style="width: 100%; height: 150px; object-fit: cover; border-radius: 4px;">
+                            <p style="margin: 10px 0 0 0; font-size: 14px; color: #666;">Image 4</p>
+                        </div>
+                        <div class="gallery-item" style="text-align: center; padding: 10px; background: white; border-radius: 6px; box-shadow: 0 1px 5px rgba(0, 0, 0, 0.1);">
+                            <img src="Image/placeholder.svg" alt="Gallery Image 5" style="width: 100%; height: 150px; object-fit: cover; border-radius: 4px;">
+                            <p style="margin: 10px 0 0 0; font-size: 14px; color: #666;">Image 5</p>
+                        </div>
+                        <div class="gallery-item" style="text-align: center; padding: 10px; background: white; border-radius: 6px; box-shadow: 0 1px 5px rgba(0, 0, 0, 0.1);">
+                            <img src="Image/placeholder.svg" alt="Gallery Image 6" style="width: 100%; height: 150px; object-fit: cover; border-radius: 4px;">
+                            <p style="margin: 10px 0 0 0; font-size: 14px; color: #666;">Image 6</p>
+                        </div>
+                    </div>
+                    <div class="gallery-controls" style="text-align: center; margin-top: 20px;">
+                        <button class="gallery-btn" style="background-color: #007bff; color: white; border: none; padding: 10px 20px; border-radius: 5px; cursor: pointer; margin: 0 5px;">Ajouter une image</button>
+                        <button class="gallery-btn" style="background-color: #28a745; color: white; border: none; padding: 10px 20px; border-radius: 5px; cursor: pointer; margin: 0 5px;">Modifier la galerie</button>
+                    </div>
+                </div>
             </div>
             
             <!-- History Modal -->

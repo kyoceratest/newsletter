@@ -57,7 +57,7 @@ document.addEventListener('DOMContentLoaded', function () {
       imageSelector: 'img',
       descSelector: 'p span[style*="font-size: 14px"]',
       targetTitle: '.title-accent',
-      targetImage: null, // locked: hero image fixed to Image/page1.png
+      targetImage: null, // locked: hero image fixed to Image/teteSuperieure.png
       targetDesc: '.lead',
       errorMsg: 'teteSuperieure (Main Title)'
     },
@@ -67,7 +67,7 @@ document.addEventListener('DOMContentLoaded', function () {
       imageSelector: 'img',
       descSelector: 'p span[style*="font-size: 14px"]',
       targetTitle: '.cards-grid.kyo-tiles .kyo-tile:nth-child(1) h3',
-      targetImage: null, // locked: tile 1 image fixed to Image/page2.png
+      targetImage: null, // locked: tile 1 image fixed to Image/contenuDeGauche.png
       targetDesc: '.cards-grid.kyo-tiles .kyo-tile:nth-child(1) p',
       errorMsg: 'contenuDeGauche (First Tile)'
     },
@@ -77,7 +77,7 @@ document.addEventListener('DOMContentLoaded', function () {
       imageSelector: 'img',
       descSelector: 'p span[style*="font-size: 14px"]',
       targetTitle: '.cards-grid.kyo-tiles .kyo-tile:nth-child(2) h3',
-      targetImage: null, // locked: tile 2 image fixed to Image/page3.png
+      targetImage: null, // locked: tile 2 image fixed to Image/contenuCentral.png
       targetDesc: '.cards-grid.kyo-tiles .kyo-tile:nth-child(2) p',
       errorMsg: 'contenuCentral (Second Tile)'
     },
@@ -87,7 +87,7 @@ document.addEventListener('DOMContentLoaded', function () {
       imageSelector: 'img',
       descSelector: 'p span[style*="font-size: 14px"]',
       targetTitle: '.cards-grid.kyo-tiles .kyo-tile:nth-child(3) h3',
-      targetImage: null, // locked: tile 3 image fixed to Image/page4.png
+      targetImage: null, // locked: tile 3 image fixed to Image/contenuDeDroite.png
       targetDesc: '.cards-grid.kyo-tiles .kyo-tile:nth-child(3) p',
       errorMsg: 'contenuDeDroite (Third Tile)'
     }
