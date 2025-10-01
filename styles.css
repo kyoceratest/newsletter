@@ -27,6 +27,16 @@ body:not(.newsletter-editor) .account-text,
 body:not(.newsletter-editor) .mobile-lang-text { color: #000 !important; }
 body:not(.newsletter-editor) .nav-menu li a { color: #000 !important; }
 body:not(.newsletter-editor) .nav-menu li a { position: relative; }
+
+/* Ensure CTA section text remains white on non-editor pages (preview/final) */
+body:not(.newsletter-editor) .cta-section { color: #ffffff !important; }
+body:not(.newsletter-editor) .cta-section h1,
+body:not(.newsletter-editor) .cta-section h2,
+body:not(.newsletter-editor) .cta-section h3,
+body:not(.newsletter-editor) .cta-section p,
+body:not(.newsletter-editor) .cta-section span { color: inherit !important; }
+/* Keep CTA button color as designed */
+body:not(.newsletter-editor) .cta-section .webinar-button { color: #ee5a24 !important; }
 /* Header spacing: top 40px, bottom 30px (non-editor pages) */
 body:not(.newsletter-editor) .header-top { padding-top: 40px !important; padding-bottom: 30px !important; }
 /* Start main content 50px below header */
