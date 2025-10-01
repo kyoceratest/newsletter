@@ -174,6 +174,17 @@ if ($resume) {
   $templateHtml = Replace-First -Text $templateHtml -Pattern '(<p[^>]*>)([\s\S]*?)(</p>)' -Replacement ("`$1$resumeEnc`$3") -Options ([System.Text.RegularExpressions.RegexOptions] 'Singleline, IgnoreCase')
 }
 
+# Update the 'Newsletter — <Month> <Year>' ribbon to NEXT month (French locale)
+$fr = [System.Globalization.CultureInfo]::GetCultureInfo('fr-FR')
+$nextDate = (Get-Date).AddMonths(1)
+# Month names are lowercase in French; we capitalize the first letter for consistency with the template
+$labelRaw = $nextDate.ToString('MMMM yyyy', $fr)
+$ti = $fr.TextInfo
+$labelCased = $ti.ToTitleCase($labelRaw)
+$nextMonthLabel = HtmlEncode $labelCased
+# Replace the first occurrence of the ribbon text after 'Newsletter — '
+$templateHtml = Replace-First -Text $templateHtml -Pattern '(<div[^>]*>Newsletter\s+&#8212;\s+)([^<]+)(</div>)' -Replacement ("`$1$nextMonthLabel`$3") -Options ([System.Text.RegularExpressions.RegexOptions] 'Singleline, IgnoreCase')
+
 # Charset meta injection not needed; template already has <meta charset="UTF-8"> and we HTML-encode text
 
 # Write back (UTF-8)
