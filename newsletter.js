@@ -41,30 +41,43 @@ document.addEventListener('DOMContentLoaded', function () {
     function extractTitleFromDoc(doc) {
         const getText = (node) => (node && (node.innerText || node.textContent) || '').replace(/\s+/g, ' ').replace(/\u00a0/g, ' ').trim();
 
-        // 1) Prefer any element with inline 52px style (case/spacing tolerant). Pick the longest meaningful text.
+        // Helper: determine if a node is media-only or contains media fallback text we should ignore
+        const isMediaLike = (el, txt) => {
+            if (!el) return false;
+            // If it directly contains media, we ignore it as a title candidate
+            if (el.querySelector && el.querySelector('video, audio, iframe, img')) return true;
+            const low = (txt || '').toLowerCase();
+            // Common browser fallback for <video>
+            if (low.includes('votre navigateur ne supporte pas la vidéo')) return true;
+            return false;
+        };
+
+        // 1) Prefer any element with inline 52px style (case/spacing tolerant).
+        //    Choose the FIRST valid candidate in document order, not the longest text.
         const styleCandidates = Array.from(
             doc.querySelectorAll('[style*="font-size:52px" i], [style*="font-size: 52px" i]')
         );
-        const bestStyle = styleCandidates
-            .map(n => ({ n, t: getText(n) }))
-            .filter(x => x.t && x.t.length >= 3)
-            .sort((a, b) => b.t.length - a.t.length)[0];
-        if (bestStyle) return bestStyle.t;
+        for (const n of styleCandidates) {
+            const t = getText(n);
+            if (t && t.length >= 3 && !isMediaLike(n, t)) {
+                return t;
+            }
+        }
 
         // 2) Elements marked by class names used in our CSS/editor
         const classEl = doc.querySelector('.sujette-title, .font-size-52');
         const classTxt = getText(classEl);
-        if (classTxt) return classTxt;
+        if (classTxt && !isMediaLike(classEl, classTxt)) return classTxt;
 
         // 3) Legacy <font size="7">
         const fontEl = doc.querySelector('font[size="7"]');
         const fontTxt = getText(fontEl);
-        if (fontTxt) return fontTxt;
+        if (fontTxt && !isMediaLike(fontEl, fontTxt)) return fontTxt;
 
         // 4) Fallback to the first headline
         const hEl = doc.querySelector('h1, h2, h3');
         const hTxt = getText(hEl);
-        if (hTxt) return hTxt;
+        if (hTxt && !isMediaLike(hEl, hTxt)) return hTxt;
 
         return '';
     }
@@ -75,12 +88,16 @@ document.addEventListener('DOMContentLoaded', function () {
         const opts = Array.from(selectEl.options).filter(o => o.value && o.value.endsWith('.html'));
         const stripHtml = (s) => (s || '').replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim();
         const extractFromRawHtml = (raw) => {
-            // Look for any tag with inline style containing font-size: 52px and capture inner text
+            // Look for any tag with inline style containing font-size: 52px and capture inner HTML
             const rx = /<([a-z0-9]+)[^>]*style[^>]*font-size\s*:\s*52px[^>]*>([\s\S]*?)<\/\1>/i;
             const m = raw.match(rx);
             if (m && m[2]) {
-                const txt = stripHtml(m[2]);
-                if (txt && txt.length >= 3) return txt;
+                // If the 52px block contains media tags, ignore it
+                if (!/<\s*(video|audio|iframe|img)[\s>]/i.test(m[2])) {
+                    const txt = stripHtml(m[2]);
+                    const low = (txt || '').toLowerCase();
+                    if (txt && txt.length >= 3 && !low.includes('votre navigateur ne supporte pas la vidéo')) return txt;
+                }
             }
             // Fallback to first h1/h2/h3 in raw
             const h = raw.match(/<(h1|h2|h3)[^>]*>([\s\S]*?)<\/\1>/i);
@@ -202,12 +219,16 @@ document.addEventListener('DOMContentLoaded', function () {
                 targetEl.appendChild(wrapper.firstChild);
             }
 
-            // Update the page accent title from the loaded document
+            // Update the page accent title and document title from the loaded document
             try {
                 const extracted = extractTitleFromDoc(doc) || '';
                 const titleHost = document.querySelector('.title-accent');
                 if (titleHost && extracted) {
                     titleHost.textContent = extracted;
+                }
+                // Keep the browser/tab title in sync for systems that read <title>
+                if (extracted) {
+                    document.title = extracted;
                 }
             } catch (_) {}
 
