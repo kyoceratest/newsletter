@@ -193,17 +193,30 @@ if ($droiteHtml) {
 
 Set-Content -Path $templatePath -Value $templateHtml -Encoding UTF8
 
-# Auto-purge jsDelivr cache for the four newsletter images so Moosend fetches the latest files
+# Auto-purge jsDelivr cache for ALL files in the Image/ folder so Moosend fetches the latest files
 try {
-  $purgePaths = @(
-    '/gh/kyoceratest/newsletter@main/Image/teteSuperieure.png',
-    '/gh/kyoceratest/newsletter@main/Image/contenuDeGauche.png',
-    '/gh/kyoceratest/newsletter@main/Image/contenuCentral.png',
-    '/gh/kyoceratest/newsletter@main/Image/contenuDeDroite.png'
-  )
-  $bodyJson = @{ path = $purgePaths } | ConvertTo-Json
-  Invoke-RestMethod -Method Post -Uri 'https://purge.jsdelivr.net/' -ContentType 'application/json' -Body $bodyJson | Out-Null
-  Write-Host "[sync_moosend.ps1] Purged jsDelivr cache for 4 images" -ForegroundColor Yellow
+  $imageDir = Join-Path $root 'Image'
+  $extensions = @('*.png','*.jpg','*.jpeg','*.svg','*.gif','*.webp')
+  $files = @()
+  foreach ($ext in $extensions) {
+    if (Test-Path $imageDir) {
+      $files += Get-ChildItem -Path $imageDir -Filter $ext -File -ErrorAction SilentlyContinue
+    }
+  }
+  $purgePaths = @()
+  foreach ($f in $files) {
+    # Build jsDelivr purge path: /gh/<owner>/<repo>@main/<relative-path>
+    $rel = $f.FullName.Substring($root.Length).TrimStart('\\','/')
+    $rel = $rel -replace '\\','/'
+    $purgePaths += '/gh/kyoceratest/newsletter@main/' + $rel
+  }
+  if ($purgePaths.Count -gt 0) {
+    $bodyJson = @{ path = $purgePaths } | ConvertTo-Json
+    Invoke-RestMethod -Method Post -Uri 'https://purge.jsdelivr.net/' -ContentType 'application/json' -Body $bodyJson | Out-Null
+    Write-Host ("[sync_moosend.ps1] Purged jsDelivr cache for {0} images" -f $purgePaths.Count) -ForegroundColor Yellow
+  } else {
+    Write-Host "[sync_moosend.ps1] No images found to purge in Image/" -ForegroundColor Yellow
+  }
 } catch {
   Write-Warning "[sync_moosend.ps1] jsDelivr purge failed (continuing)"
 }
