@@ -839,14 +839,40 @@ class NewsletterEditor {
             if (selection.isCollapsed) {
                 let node = range.startContainer;
                 if (node.nodeType === Node.TEXT_NODE) node = node.parentElement;
-                const targetEl = node && node.closest && node.closest('h1,h2,h3,h4,h5,h6,p,div,span');
+                const targetEl = node && node.closest && node.closest('h1,h2,h3,h4,h5,h6,p,div,span,a');
                 if (targetEl) {
+                    // If target is a link (e.g., CTA button), wrap its contents in a span
+                    // so the font-size applies to the inner text and is not impacted by
+                    // the anchor's own CSS (which may use !important).
+                    const applyToAnchorContents = (px) => {
+                        const span = document.createElement('span');
+                        span.style.fontSize = px;
+                        // Move existing children into the span
+                        while (targetEl.firstChild) {
+                            span.appendChild(targetEl.firstChild);
+                        }
+                        targetEl.appendChild(span);
+                    };
+
                     if (fontSize === '52') {
-                        targetEl.style.fontSize = '52px';
-                        targetEl.style.lineHeight = '1.2';
-                        targetEl.style.fontWeight = 'bold';
+                        if (targetEl.tagName === 'A') {
+                            applyToAnchorContents('52px');
+                            const inner = targetEl.querySelector('span');
+                            if (inner) {
+                                inner.style.lineHeight = '1.2';
+                                inner.style.fontWeight = 'bold';
+                            }
+                        } else {
+                            targetEl.style.fontSize = '52px';
+                            targetEl.style.lineHeight = '1.2';
+                            targetEl.style.fontWeight = 'bold';
+                        }
                     } else {
-                        targetEl.style.fontSize = fontSize + 'px';
+                        if (targetEl.tagName === 'A') {
+                            applyToAnchorContents(fontSize + 'px');
+                        } else {
+                            targetEl.style.fontSize = fontSize + 'px';
+                        }
                     }
                     this.saveSelection();
                     this.saveState();
@@ -1694,7 +1720,19 @@ class NewsletterEditor {
     saveSelection() {
         const selection = window.getSelection();
         if (!selection || selection.rangeCount === 0) return;
-        this.savedSelection = selection.getRangeAt(0).cloneRange();
+        const range = selection.getRangeAt(0);
+        // Only persist selections that are inside the editable content area
+        try {
+            const startNode = range.startContainer;
+            const el = (startNode && startNode.nodeType === Node.ELEMENT_NODE)
+                ? startNode
+                : (startNode && startNode.parentElement);
+            if (el && el.closest && el.closest('#editableContent')) {
+                this.savedSelection = range.cloneRange();
+            }
+        } catch (_) {
+            // Fallback: do not update savedSelection if we cannot verify context
+        }
     }
 
     // Insert raw HTML at the current selection inside #editableContent
@@ -4387,9 +4425,6 @@ class NewsletterEditor {
         ctaSection.style.cssText = 'margin: 30px 0; padding: 40px; background: linear-gradient(135deg, #ff6b6b, #ee5a24); border-radius: 12px; text-align: center; color: white;';
         
         ctaSection.innerHTML = `
-            <div style="margin-bottom: 20px;">
-                <i class="fas fa-bullhorn" style="font-size: 48px; margin-bottom: 20px; opacity: 0.9;"></i>
-            </div>
             <h3 contenteditable="true" style="color: white; margin: 0 0 15px 0; font-size: 28px; font-weight: bold;">Annonce</h3>
             <p contenteditable="true" style="color: rgba(255,255,255,0.9); font-size: 18px; margin-bottom: 25px; line-height: 1.6;">Publiez ici une annonce importante. Modifiez ce texte selon votre besoin.</p>
             <a href="inscription.html" class="webinar-button" style="display: inline-block !important; background: white !important; color: #ee5a24 !important; padding: 15px 30px !important; border-radius: 50px !important; text-decoration: none !important; font-weight: bold !important; font-size: 16px !important; transition: transform 0.3s ease !important; box-shadow: 0 4px 15px rgba(0,0,0,0.2) !important; border: none !important;">En savoir plus</a>
