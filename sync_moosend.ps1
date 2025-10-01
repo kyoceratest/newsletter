@@ -1,13 +1,11 @@
-# sync_moosend.ps1
-# Purpose: Sync subject (H1) and resume (lead paragraph) from index.html
-# into moosend_template.html: <title>, hidden preheader, first <h1>, first intro <p>.
-# No external dependencies. Run with PowerShell.
-# powershell -ExecutionPolicy Bypass -File ".\sync_moosend.ps1"
+# Configuration: GitHub repo and Pages base URL (edit here if repo/folder renamed)
+$GitHubOwner = 'kyoceratest'
+$GitHubRepo  = 'newsletter'
+$PagesBaseUrl = "https://$GitHubOwner.github.io/$GitHubRepo"
+# Normalize base URL (no trailing slash)
+if ($PagesBaseUrl.EndsWith('/')) { $PagesBaseUrl = $PagesBaseUrl.TrimEnd('/') }
 
-
-$ErrorActionPreference = 'Stop'
-
-# Paths
+# Paths (restored)
 $root = Split-Path -Parent $MyInvocation.MyCommand.Path
 $indexPath = Join-Path $root 'index.html'
 $tetePath = Join-Path $root 'teteSuperieure.html'
@@ -27,6 +25,25 @@ $centralHtml = $null
 if (Test-Path $centralPath) { $centralHtml = Get-Content -Path $centralPath -Raw -Encoding UTF8 }
 $droiteHtml = $null
 if (Test-Path $droitePath) { $droiteHtml = Get-Content -Path $droitePath -Raw -Encoding UTF8 }
+
+# Normalize existing tile hrefs in template to the configured base URL
+$templateHtml = $templateHtml -replace 'https://[^"\s]*/newsletter/newsletter\.html\?page=', "$PagesBaseUrl/newsletter.html?page="
+
+# Option: serve images from GitHub Pages instead of jsDelivr (more predictable caching)
+$UsePagesForImages = $true
+
+# Choose image base URL accordingly and normalize existing references in the template
+if ($UsePagesForImages) {
+  $ImageBase = "$PagesBaseUrl/Image/"
+  # Normalize any jsDelivr URLs to Pages base
+  $templateHtml = $templateHtml -replace 'https://cdn\.jsdelivr\.net/gh/[^/]+/[^@]+@main/Image/', $ImageBase
+  # Normalize any different host Pages URLs to the configured base
+  $templateHtml = $templateHtml -replace 'https://[^"\s]*/newsletter/Image/', $ImageBase
+} else {
+  $ImageBase = "https://cdn.jsdelivr.net/gh/$GitHubOwner/$GitHubRepo@main/Image/"
+  # Normalize any Pages URLs back to jsDelivr base
+  $templateHtml = $templateHtml -replace 'https://[^"\s]*/newsletter/Image/', $ImageBase
+}
 
 # Extract helpers (singleline regex)
 # Preferred: from teteSuperieure.html spans sized 52px (subject) and 22px (resume)
@@ -144,7 +161,9 @@ function Update-Tile {
   if (-not $title -and -not $desc) { return $html }
   $titleEnc = if ($title) { HtmlEncode $title } else { '' }
   $descEnc  = if ($desc)  { HtmlEncode $desc }  else { '' }
-  $href = 'https://kyoceratest\.github\.io/newsletter/newsletter\.html\?page=' + $page
+  # Build an href pattern matching the configured base URL
+  $baseEsc = [regex]::Escape("$PagesBaseUrl/newsletter.html?page=")
+  $href = $baseEsc + $page
   # Replace title <h3> that appears after the specific <a href> block
   if ($title) {
     $patternTitle = '(?s)(<a\s+href="' + $href + '"[^>]*>.*?</a>.*?<h3[^>]*>)([\s\S]*?)(</h3>)'
@@ -202,6 +221,38 @@ if ($droiteHtml) {
   $templateHtml = Update-Tile -html $templateHtml -page 4 -title $pair[0] -desc $pair[1]
 }
 
+# Optional: automatic cache-busting for Image/* URLs in the template (against the chosen base)
+$EnableImageCacheBuster = $true
+if ($EnableImageCacheBuster) {
+  try {
+    $cacheBust = (Get-Date).ToString('yyyyMMddHHmmss')
+    $imgEsc = [regex]::Escape($ImageBase)
+    $pattern = $imgEsc + '([^"'']+?\.(?:png|jpg|jpeg|svg|gif|webp))(?:\?[^"'']*)?'
+
+    $evaluator = {
+      param([System.Text.RegularExpressions.Match]$m)
+      $filePart = $m.Groups[1].Value
+      $full = $m.Value
+      $baseFile = $using:ImageBase + $filePart
+      if ($full -match '\?') {
+        $qsIndex = $full.IndexOf('?')
+        if ($qsIndex -ge 0) {
+          $query = $full.Substring($qsIndex + 1)
+          $pairs = @()
+          if ($query) { $pairs = $query -split '&' | Where-Object { $_ -and ($_ -notmatch '^v=') } }
+          $newq = ($pairs + ("v=" + $cacheBust)) -join '&'
+          return $baseFile + '?' + $newq
+        }
+      }
+      return $baseFile + '?v=' + $cacheBust
+    }
+
+    $templateHtml = [regex]::Replace($templateHtml, $pattern, $evaluator)
+  } catch {
+    Write-Warning "[sync_moosend.ps1] Cache-buster update failed (continuing)"
+  }
+}
+
 Set-Content -Path $templatePath -Value $templateHtml -Encoding UTF8
 
 # Auto-purge jsDelivr cache for ALL files in the Image/ folder so Moosend fetches the latest files
@@ -219,7 +270,7 @@ try {
     # Build jsDelivr purge path: /gh/<owner>/<repo>@main/<relative-path>
     $rel = $f.FullName.Substring($root.Length).TrimStart('\\','/')
     $rel = $rel -replace '\\','/'
-    $purgePaths += '/gh/kyoceratest/newsletter@main/' + $rel
+    $purgePaths += "/gh/$GitHubOwner/$GitHubRepo@main/" + $rel
   }
   if ($purgePaths.Count -gt 0) {
     $bodyJson = @{ path = $purgePaths } | ConvertTo-Json
