@@ -2197,6 +2197,7 @@ class NewsletterEditor {
         toIconOnly(document.getElementById('deleteImageBtn'), '<i class="fas fa-trash"></i>', 'Supprimer');
         toIconOnly(document.getElementById('rotationBtn'), '<i class="fas fa-sync"></i> <i class="fas fa-caret-down"></i>', 'Rotation');
         toIconOnly(document.getElementById('changeImageBtn'), '<i class="fas fa-image"></i>', "Changer l'image");
+        toIconOnly(document.getElementById('linkImageBtn'), '<i class="fas fa-link"></i>', 'Lien');
         
         // Rotation dropdown toggle
         document.getElementById('rotationBtn').addEventListener('click', (e) => {
@@ -2332,6 +2333,61 @@ class NewsletterEditor {
                     }
                 };
                 input.click();
+            });
+        }
+
+        // Link image button — add/update/remove hyperlink around the selected image
+        const linkBtn = document.getElementById('linkImageBtn');
+        if (linkBtn) {
+            linkBtn.addEventListener('click', (e) => {
+                e.stopPropagation();
+                if (!this.currentEditingImage) return;
+
+                const img = this.currentEditingImage;
+                // Find existing anchor that directly wraps the image
+                let anchor = (img.parentElement && img.parentElement.tagName === 'A') ? img.parentElement : img.closest && img.closest('a');
+                let currentHref = anchor ? (anchor.getAttribute('href') || '') : '';
+
+                const url = prompt("Entrez l'URL du lien (laissez vide pour supprimer):", currentHref || '');
+                if (url === null) return; // user canceled
+                const trimmed = (url || '').trim();
+
+                // Remove link if empty
+                if (trimmed === '') {
+                    if (anchor) {
+                        const parent = anchor.parentNode;
+                        try {
+                            parent.insertBefore(img, anchor);
+                            anchor.remove();
+                        } catch (_) { /* no-op */ }
+                        this.saveState();
+                        this.updateLastModified();
+                        this.autoSaveToLocalStorage();
+                        this.lastAction = "Lien d'image supprimé";
+                    }
+                    return;
+                }
+
+                // Add or update link
+                if (!anchor) {
+                    anchor = document.createElement('a');
+                    try {
+                        const parent = img.parentNode;
+                        parent.insertBefore(anchor, img);
+                        anchor.appendChild(img);
+                    } catch (_) { /* no-op */ }
+                }
+                try {
+                    anchor.setAttribute('href', trimmed);
+                    anchor.setAttribute('target', '_blank');
+                    anchor.setAttribute('rel', 'noopener noreferrer');
+                } catch (_) { /* no-op */ }
+
+                // Persist state
+                this.saveState();
+                this.updateLastModified();
+                this.autoSaveToLocalStorage();
+                this.lastAction = "Lien d'image mis à jour";
             });
         }
 
