@@ -150,6 +150,101 @@ function Extract-TitleDesc {
   return @($title, $desc)
 }
 
+# Extract first <img> (src, alt) from HTML
+function Extract-FirstImage {
+  param([string]$html)
+  if ([string]::IsNullOrEmpty($html)) { return $null }
+  $m = [regex]::Match($html, '<img\s+[^>]*src=["'']([^"'']+)["''][^>]*>', 'Singleline, IgnoreCase')
+  if (-not $m.Success) { return $null }
+  $tag = $m.Value
+  $src = $m.Groups[1].Value
+  $altM = [regex]::Match($tag, 'alt=["'']([^"'']*)["'']', 'IgnoreCase')
+  $alt = if ($altM.Success) { $altM.Groups[1].Value } else { '' }
+  return @{ src = $src; alt = $alt }
+}
+
+# Convert image src to absolute GitHub Pages URL when needed
+function To-AbsoluteWebUrl {
+  param([string]$fromFile, [string]$imgSrc)
+  if ([string]::IsNullOrEmpty($imgSrc)) { return $imgSrc }
+  if ($imgSrc -match '^(?i)https?://') { return $imgSrc }
+  $dir = Split-Path -Parent $fromFile
+  $resolved = Resolve-Path -Path (Join-Path $dir $imgSrc) -ErrorAction SilentlyContinue
+  if (-not $resolved) { return $imgSrc }
+  $abs = $resolved.Path
+  # remove any leading slashes from relative path and normalize backslashes
+  $rel = ($abs.Substring($root.Length) -replace '^[\\/]+','') -replace '\\','/'
+  return "$PagesBaseUrl/$rel"
+}
+
+# Build one tile row HTML identical in structure to existing tiles
+function Build-TileRow {
+  param(
+    [string]$href,
+    [string]$imgSrc,
+    [string]$imgAlt,
+    [string]$title,
+    [string]$desc
+  )
+  $imgAltEnc = HtmlEncode ($imgAlt | ForEach-Object { $_ })
+  $titleEnc  = HtmlEncode ($title  | ForEach-Object { $_ })
+  $descEnc   = HtmlEncode ($desc   | ForEach-Object { $_ })
+  return @"
+          <tr>
+            <td align=\"left\" style=\"padding:10px 24px;\">
+              <table role=\"presentation\" width=\"100%\" cellpadding=\"0\" cellspacing=\"0\" border=\"0\" style=\"border-collapse:collapse;\">
+                <tr>
+                  <td style=\"padding:0 0 10px 0;\">
+                    <a href=\"$href\" style=\"text-decoration:none;\">
+                      <img src=\"$imgSrc\" alt=\"$imgAltEnc\" width=\"600\" style=\"display:block; width:100%; max-width:600px; height:auto; border:0;\">
+                    </a>
+                  </td>
+                </tr>
+                <tr>
+                  <td style=\"font-family: Arial, Helvetica, sans-serif;\">
+                    <h3 style=\"margin:0 0 6px 0; font-size:16px; line-height:1.4; color:#111827;\">$titleEnc</h3>
+                    <p style=\"margin:0; font-size:14px; line-height:1.6; color:#374151;\">$descEnc</p>
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+"@
+}
+
+# Discover all TypeNews/*/article*.html with category ordering (edito first)
+function Discover-Articles {
+  $cats = @('edito','animation','branding','com_actus','formations','outils_astuces','solutions_insights','zoom_matériel')
+  $items = @()
+  foreach ($c in $cats) {
+    for ($i=1; $i -le 5; $i++) {
+      $p = Join-Path $root ("TypeNews/$c/article$($i).html")
+      if (Test-Path $p) { $items += @{ path = $p; cat = $c; name = "article$($i).html" } }
+    }
+  }
+  return $items
+}
+
+# Generate all article tiles HTML
+function Generate-ArticleTilesHtml {
+  $items = Discover-Articles
+  $sb = New-Object System.Text.StringBuilder
+  foreach ($it in $items) {
+    $raw = Get-Content -Path $it.path -Raw -Encoding UTF8
+    $pair = Extract-TitleDesc -html $raw
+    $title = $pair[0]
+    $desc  = $pair[1]
+    $img   = Extract-FirstImage -html $raw
+    if (-not $img) { Write-Warning "[sync_moosend.ps1] No image in $($it.path); skipping"; continue }
+    $imgWeb = To-AbsoluteWebUrl -fromFile $it.path -imgSrc $img.src
+    # Link to hosted article file
+    $rel = ($it.path.Substring($root.Length) -replace '^[\\/]+','') -replace '\\','/'
+    $href = "$PagesBaseUrl/$rel"
+    [void]$sb.Append( (Build-TileRow -href $href -imgSrc $imgWeb -imgAlt $img.alt -title $title -desc $desc) )
+  }
+  return $sb.ToString()
+}
+
 # Update one tile in the template identified by the page href.
 function Update-Tile {
   param(
@@ -206,19 +301,39 @@ $templateHtml = Replace-First -Text $templateHtml -Pattern '(<div[^>]*>Newslette
 
 # Charset meta injection not needed; template already has <meta charset="UTF-8"> and we HTML-encode text
 
-# Write back (UTF-8)
-# Update tiles from content files
-if ($gaucheHtml) {
-  $pair = Extract-TitleDesc -html $gaucheHtml
-  $templateHtml = Update-Tile -html $templateHtml -page 2 -title $pair[0] -desc $pair[1]
-}
-if ($centralHtml) {
-  $pair = Extract-TitleDesc -html $centralHtml
-  $templateHtml = Update-Tile -html $templateHtml -page 3 -title $pair[0] -desc $pair[1]
-}
-if ($droiteHtml) {
-  $pair = Extract-TitleDesc -html $droiteHtml
-  $templateHtml = Update-Tile -html $templateHtml -page 4 -title $pair[0] -desc $pair[1]
+# Replace legacy tiles with dynamically generated article tiles (between Section title and Tarif block)
+try {
+  $tilesHtml = Generate-ArticleTilesHtml
+  Write-Host ("[sync_moosend.ps1] Generated tiles length: {0}" -f ($tilesHtml.Length)) -ForegroundColor DarkCyan
+  # Find end of Section title row
+  $sectionMatch = [regex]::Match($templateHtml, '(?s)<!--\s*Section title\s*-->[\s\S]*?</tr>')
+  # Find start of Tarif tile (by comment or by Tarif link)
+  $tarifIndex = [regex]::Match($templateHtml, '(?is)<!--\s*Tile\s*4\s*:\s*Tarif\s*-->|<a\s+href="https://[^"\s]*/newsletter/Tarif/login_page/index\.html"')
+  if ($sectionMatch.Success -and $tarifIndex.Success) {
+    $insertPos = $sectionMatch.Index + $sectionMatch.Length
+    $startTarif = $tarifIndex.Index
+    $left = $templateHtml.Substring(0, $insertPos)
+    $right = $templateHtml.Substring($startTarif)
+    $templateHtml = $left + "`n" + $tilesHtml + $right
+    Write-Host "[sync_moosend.ps1] Inserted tiles between Section title and Tarif." -ForegroundColor Green
+  } else {
+    Write-Warning "[sync_moosend.ps1] Could not locate Section title and/or Tarif block for tile insertion. Trying fallback (from first Tile comment)."
+    # Fallback: replace from first Tile comment to Tarif block
+    $firstTile = [regex]::Match($templateHtml, '(?is)<!--\s*Tile\s*1\s*:\s*[^-]+-->')
+    if (-not $firstTile.Success) { $firstTile = [regex]::Match($templateHtml, '(?is)<!--\s*Tile\s*:\s*[^-]+-->') }
+    if ($firstTile.Success -and $tarifIndex.Success) {
+      $startTiles = $firstTile.Index
+      $startTarif = $tarifIndex.Index
+      $left = $templateHtml.Substring(0, $startTiles)
+      $right = $templateHtml.Substring($startTarif)
+      $templateHtml = $left + $tilesHtml + $right
+      Write-Host "[sync_moosend.ps1] Inserted tiles using fallback region." -ForegroundColor Green
+    } else {
+      Write-Warning "[sync_moosend.ps1] Fallback also failed; leaving legacy tiles unchanged."
+    }
+  }
+} catch {
+  Write-Warning "[sync_moosend.ps1] Failed to generate article tiles: $($_.Exception.Message)"
 }
 
 # Optional: automatic cache-busting for Image/* URLs in the template (against the chosen base)

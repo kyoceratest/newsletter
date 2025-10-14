@@ -58,9 +58,16 @@
       try {
         const raw = localStorage.getItem('newsletterHistory');
         const persisted = raw ? JSON.parse(raw) : [];
-        if (Array.isArray(persisted)) {
+        const fallbackRaw = sessionStorage.getItem('newsletterHistoryFallback');
+        const fallbackList = fallbackRaw ? JSON.parse(fallbackRaw) : [];
+        const bufferList = Array.isArray(window.__historyBuffer) ? window.__historyBuffer : [];
+        const merged = []
+          .concat(Array.isArray(persisted) ? persisted : [])
+          .concat(Array.isArray(fallbackList) ? fallbackList : [])
+          .concat(Array.isArray(bufferList) ? bufferList : []);
+        if (Array.isArray(merged)) {
           historyData.length = 0;
-          historyData.push(...persisted.map(item => ({
+          historyData.push(...merged.map(item => ({
             id: String(item.id),
             title: item.name || 'Sans nom',
             date: item.date || (item.timestamp ? new Date(item.timestamp).toLocaleString('fr-FR') : ''),
@@ -251,14 +258,21 @@
       }, 100);
     }
 
-    function restoreItem(itemId) {
+    async function restoreItem(itemId) {
       const item = historyData.find(i => String(i.id) === String(itemId));
       if (!item) return;
       const editable = document.getElementById('editableContent');
       if (editable) {
+        let html = '';
+        try {
+          if (typeof getFullContentFromIDB === 'function') {
+            html = await getFullContentFromIDB(item.id);
+          }
+        } catch (_) { html = ''; }
+        if (!html) html = item.content || '';
         editable.innerHTML = '';
         const wrapper = document.createElement('div');
-        wrapper.innerHTML = item.content || '';
+        wrapper.innerHTML = html;
         while (wrapper.firstChild) editable.appendChild(wrapper.firstChild);
       }
       closeModal();

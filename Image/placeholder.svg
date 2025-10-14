@@ -12,5 +12,5 @@
     <circle cx="65" cy="60" r="22"/>
     <path d="M20 120 L80 80 L115 105 L150 90 L180 120 Z"/>
   </g>
-  <text x="100" y="140" font-family="Montserrat, Arial, sans-serif" font-size="12" fill="#6c757d" text-anchor="middle">Placeholder</text>
+  <text x="100" y="140" font-family="Verdana, Arial, sans-serif" font-size="12" fill="#6c757d" text-anchor="middle">Placeholder</text>
 </svg>

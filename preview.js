@@ -6,10 +6,71 @@
 function handlePreviewContent(data) {
   const { content, title } = data || {};
   const target = document.getElementById('loadedContent');
-  if (target) target.innerHTML = content || '';
-  if (title) {
-    try { document.title = title + ' - Aperçu'; } catch (e) {}
+  const historyId = getUrlParameter('historyId');
+
+  const renderHtml = (html) => {
+    if (!target) return;
+    const wrapper = document.createElement('div');
+    wrapper.innerHTML = html || '';
+    try {
+      normalizeAssetsInWrapper(wrapper);
+      // Sanitize editing affordances
+      wrapper.querySelectorAll('[contenteditable]').forEach(el => {
+        el.removeAttribute('contenteditable');
+        el.contentEditable = 'false';
+      });
+      ['input','textarea','select','button'].forEach(sel => {
+        wrapper.querySelectorAll(sel).forEach(ctrl => {
+          ctrl.setAttribute('disabled', '');
+          ctrl.setAttribute('tabindex', '-1');
+        });
+      });
+    } catch (_) {}
+    target.innerHTML = '';
+    while (wrapper.firstChild) target.appendChild(wrapper.firstChild);
+    if (title) { try { document.title = title + ' - Aperçu'; } catch (_) {} }
+  };
+
+  // Prefer full content from IndexedDB when a historyId is present
+  if (historyId) {
+    try {
+      getFullContentFromIDB(historyId)
+        .then(full => { renderHtml(full || content || ''); })
+        .catch(() => { renderHtml(content || ''); });
+    } catch (_) {
+      renderHtml(content || '');
+    }
+  } else {
+    renderHtml(content || '');
   }
+}
+
+// Resolve bare asset names relative to a base directory (e.g., TypeNews/animation)
+function normalizeAssetsRelative(wrapper, baseDir) {
+  if (!baseDir) return;
+  const prefix = baseDir.endsWith('/') ? baseDir : baseDir + '/';
+  const isBare = (p) => !!p && !/^https?:\/\//i.test(p) && !/^data:/i.test(p) && !/^blob:/i.test(p) && !/^file:\/\//i.test(p) && !/^\//.test(p) && !p.includes('/');
+  const winAbsRe = /^[a-zA-Z]:\\|^\\\\/; // C:\... or \\server\share
+  const fileProtoRe = /^file:\/\//i; // file:///C:/...
+
+  // imgs
+  Array.from(wrapper.querySelectorAll('img[src]')).forEach(img => {
+    let raw = img.getAttribute('src') || '';
+    if (winAbsRe.test(raw) || fileProtoRe.test(raw)) return; // leave absolute OS paths to other normalizers
+    if (isBare(raw)) img.setAttribute('src', prefix + raw);
+  });
+  // video/audio elements with src
+  Array.from(wrapper.querySelectorAll('video[src],audio[src]')).forEach(el => {
+    let raw = el.getAttribute('src') || '';
+    if (winAbsRe.test(raw) || fileProtoRe.test(raw)) return;
+    if (isBare(raw)) el.setAttribute('src', prefix + raw);
+  });
+  // <source src> inside media
+  Array.from(wrapper.querySelectorAll('video source[src], audio source[src]')).forEach(srcEl => {
+    let raw = srcEl.getAttribute('src') || '';
+    if (winAbsRe.test(raw) || fileProtoRe.test(raw)) return;
+    if (isBare(raw)) srcEl.setAttribute('src', prefix + raw);
+  });
 }
 
 // Listen for messages from the parent window (history modal)
@@ -35,6 +96,8 @@ function getUrlParameter(name) {
       // In preview mode: keep header and footer visible; just clear the content area
       const target = document.getElementById('loadedContent');
       if (target) target.innerHTML = '';
+      // Fallback load by ID (in case postMessage cannot access due to file:// or cross-origin)
+      try { loadHistoryPreviewById(historyId); } catch (_) {}
     } else {
       // Normal page: hamburger toggle
       const hamburger = document.getElementById('hamburger');
@@ -58,6 +121,146 @@ function getUrlParameter(name) {
   });
 })();
 
+// 6) Fallback: load preview content directly from storage by historyId
+async function loadHistoryPreviewById(historyId) {
+  const id = String(historyId);
+  const target = document.getElementById('loadedContent');
+  if (!target) return;
+  let item = null;
+  try {
+    const raw = localStorage.getItem('newsletterHistory');
+    const list = raw ? JSON.parse(raw) : [];
+    if (Array.isArray(list)) item = list.find(it => String(it.id) === id) || null;
+  } catch (_) {}
+  if (!item) {
+    try {
+      const raw2 = sessionStorage.getItem('newsletterHistoryFallback');
+      const list2 = raw2 ? JSON.parse(raw2) : [];
+      if (Array.isArray(list2)) item = list2.find(it => String(it.id) === id) || null;
+    } catch (_) {}
+  }
+  if (!item) return;
+
+  // Sanitize: remove editing affordances, disable form controls
+  const wrapper = document.createElement('div');
+  let fullHtml = '';
+  try {
+    // Prefer full snapshot from IndexedDB if available
+    fullHtml = await getFullContentFromIDB(id);
+  } catch (_) { fullHtml = ''; }
+  wrapper.innerHTML = fullHtml || (item.content || '');
+  try {
+    normalizeAssetsInWrapper(wrapper);
+    wrapper.querySelectorAll('[contenteditable]').forEach(el => {
+      el.removeAttribute('contenteditable');
+      el.contentEditable = 'false';
+    });
+    ['input','textarea','select','button'].forEach(sel => {
+      wrapper.querySelectorAll(sel).forEach(ctrl => {
+        ctrl.setAttribute('disabled', '');
+        ctrl.setAttribute('tabindex', '-1');
+      });
+    });
+  } catch (_) {}
+
+  target.innerHTML = '';
+  while (wrapper.firstChild) target.appendChild(wrapper.firstChild);
+  try { if (item.name) document.title = item.name + ' - Aperçu'; } catch (_) {}
+}
+
+// Local IndexedDB helpers (preview page may not include editor.js)
+function openHistoryDB() {
+  return new Promise((resolve, reject) => {
+    try {
+      const req = indexedDB.open('NewsletterDB', 1);
+      req.onupgradeneeded = () => {
+        const db = req.result;
+        if (!db.objectStoreNames.contains('historyFull')) {
+          db.createObjectStore('historyFull', { keyPath: 'id' });
+        }
+      };
+      req.onsuccess = () => resolve(req.result);
+      req.onerror = () => reject(req.error);
+    } catch (e) { reject(e); }
+  });
+}
+
+function getFullContentFromIDB(id) {
+  return openHistoryDB().then(db => new Promise(resolve => {
+    const tx = db.transaction('historyFull', 'readonly');
+    const store = tx.objectStore('historyFull');
+    const req = store.get(String(id));
+    req.onsuccess = () => { try { db.close(); } catch (_) {}; resolve((req.result && req.result.content) || ''); };
+    req.onerror = () => { try { db.close(); } catch (_) {}; resolve(''); };
+  })).catch(() => '');
+}
+
+// Helper: normalize bare asset paths (e.g., "image.jpg" -> "Image/image.jpg")
+function normalizeAssetsInWrapper(wrapper) {
+  const isBare = (p) => !!p && !/^https?:\/\//i.test(p) && !/^data:/i.test(p) && !/^blob:/i.test(p) && !/^file:\/\//i.test(p) && !/^\//.test(p) && !p.includes('/');
+  const clean = (p) => (p || '').replace(/^\.\//, '');
+  const toFolder = (p) => {
+    const name = clean(p);
+    const lower = name.toLowerCase();
+    const isImg = /(\.png|\.jpg|\.jpeg|\.gif|\.svg|\.webp|\.bmp|\.ico)$/i.test(lower);
+    const isMedia = /(\.mp4|\.webm|\.ogg|\.mp3|\.wav)$/i.test(lower);
+    if (isImg) return 'Image/' + name;
+    if (isMedia) return 'media/' + name;
+    return name;
+  };
+  const winAbsRe = /^[a-zA-Z]:\\|^\\\\/; // C:\... or \\server\share
+  const fileProtoRe = /^file:\/\//i; // file:///C:/...
+  const basename = (p) => {
+    const norm = (p || '').replace(/^[a-zA-Z]+:\/\//, '') // strip proto if any
+                          .replace(/^file:\/\//i, '')
+                          .replace(/\\/g, '/');
+    const parts = norm.split('/');
+    return parts[parts.length - 1] || '';
+  };
+  // imgs
+  Array.from(wrapper.querySelectorAll('img[src]')).forEach(img => {
+    let raw = img.getAttribute('src') || '';
+    if (winAbsRe.test(raw) || fileProtoRe.test(raw)) {
+      const name = basename(raw);
+      if (name) raw = toFolder(name);
+    }
+    if (isBare(raw)) raw = toFolder(raw);
+    img.setAttribute('src', raw);
+  });
+  // video/audio elements with src
+  Array.from(wrapper.querySelectorAll('video[src],audio[src]')).forEach(el => {
+    let raw = el.getAttribute('src') || '';
+    if (winAbsRe.test(raw) || fileProtoRe.test(raw)) {
+      const name = basename(raw);
+      if (name) raw = toFolder(name);
+    }
+    // If a blob URL is present, try resolving via data-local-filename hint
+    if (/^blob:\/\//i.test(raw)) {
+      const hint = el.getAttribute('data-local-filename') || '';
+      if (hint) raw = toFolder(hint);
+    }
+    if (isBare(raw)) raw = toFolder(raw);
+    el.setAttribute('src', raw);
+  });
+  // <source src> inside media
+  Array.from(wrapper.querySelectorAll('video source[src], audio source[src]')).forEach(srcEl => {
+    let raw = srcEl.getAttribute('src') || '';
+    if (winAbsRe.test(raw) || fileProtoRe.test(raw)) {
+      const name = basename(raw);
+      if (name) raw = toFolder(name);
+    }
+    if (/^blob:\/\//i.test(raw)) {
+      // Prefer own hint; else look at parent <video>
+      let hint = srcEl.getAttribute('data-local-filename') || '';
+      if (!hint) {
+        try { const parent = srcEl.closest('video,audio'); hint = parent ? (parent.getAttribute('data-local-filename') || '') : ''; } catch (_) {}
+      }
+      if (hint) raw = toFolder(hint);
+    }
+    if (isBare(raw)) raw = toFolder(raw);
+    srcEl.setAttribute('src', raw);
+  });
+}
 // 4) Content Loader (only when not in preview mode)
 (function initContentLoader() {
   const historyId = getUrlParameter('historyId');
@@ -84,7 +287,7 @@ function getUrlParameter(name) {
       for (const opt of opts) {
         try {
           const syncFile = opt.value;
-          if (syncFile === 'contenuDeGauche.html' || syncFile === 'teteSuperieure.html' || syncFile === 'contenuCentral.html' || syncFile === 'contenuDeDroite.html') {
+          if (syncFile === 'teteSuperieure.html') {
             const res = await fetch(`${syncFile}?t=${Date.now()}`);
             if (!res.ok) throw new Error(`HTTP ${res.status}`);
             const html = await res.text();
@@ -102,9 +305,6 @@ function getUrlParameter(name) {
     function mapPageToFile(page) {
       switch (page) {
         case '1': return 'teteSuperieure.html';
-        case '2': return 'contenuDeGauche.html';
-        case '3': return 'contenuCentral.html';
-        case '4': return 'contenuDeDroite.html';
         default: return '';
       }
     }
@@ -112,8 +312,19 @@ function getUrlParameter(name) {
     async function loadSelected(path) {
       if (!path) { targetEl.innerHTML = ''; statusEl.textContent = ''; return; }
       statusEl.textContent = 'Chargement...';
+      // Hidden fallback mapping to existing in-repo files (UI unchanged)
+      const fallbackMap = {
+        'teteSuperieure.html': 'TypeNews/edito/article5.html'
+      };
+      const candidates = [path, fallbackMap[path]].filter(Boolean);
       try {
-        const res = await fetch(`${path}?t=${Date.now()}`);
+        // Try primary, then mapped fallback if needed; remember which path succeeded
+        let usedPath = candidates[0];
+        let res = await fetch(`${candidates[0]}?t=${Date.now()}`);
+        if (!res.ok && candidates[1]) {
+          const res2 = await fetch(`${candidates[1]}?t=${Date.now()}`);
+          if (res2.ok) { res = res2; usedPath = candidates[1]; }
+        }
         if (!res.ok) throw new Error(`HTTP ${res.status}`);
         const html = await res.text();
         const parser = new DOMParser();
@@ -121,6 +332,19 @@ function getUrlParameter(name) {
         const content = doc.querySelector('.newsletter-content') || doc.body;
         const wrapper = document.createElement('div');
         wrapper.innerHTML = content ? content.innerHTML : html;
+
+        // Normalization:
+        // - Known synced files: map bare names to Image/ or media/
+        // - Other files: resolve bare names relative to the fetched file's directory (GitHub-like behavior)
+        try {
+          const normalizeFor = ['teteSuperieure.html'];
+          if (normalizeFor.includes(path)) {
+            normalizeAssetsInWrapper(wrapper);
+          } else {
+            const baseDir = (usedPath && usedPath.includes('/')) ? usedPath.substring(0, usedPath.lastIndexOf('/')) : '';
+            normalizeAssetsRelative(wrapper, baseDir);
+          }
+        } catch (_) { /* ignore */ }
         wrapper.querySelectorAll('[contenteditable]').forEach(el => {
           el.removeAttribute('contenteditable');
           el.contentEditable = 'false';
@@ -133,9 +357,29 @@ function getUrlParameter(name) {
         });
         targetEl.innerHTML = '';
         while (wrapper.firstChild) targetEl.appendChild(wrapper.firstChild);
+        // If nothing rendered, fall back to autosaved editor content
+        if (!targetEl.innerHTML || targetEl.innerHTML.trim() === '') {
+          try {
+            let saved = localStorage.getItem('currentNewsletterContent');
+            if (!saved) saved = sessionStorage.getItem('currentNewsletterContentSession');
+            if (saved) {
+              targetEl.innerHTML = saved;
+            }
+          } catch (_) { /* ignore */ }
+        }
         statusEl.textContent = '';
       } catch (e) {
         console.error('Load failed:', e);
+        // Fallback to autosaved editor content so preview isn't empty
+        try {
+          let saved = localStorage.getItem('currentNewsletterContent');
+          if (!saved) saved = sessionStorage.getItem('currentNewsletterContentSession');
+          if (saved) {
+            targetEl.innerHTML = saved;
+            statusEl.textContent = '';
+            return;
+          }
+        } catch (_) { /* ignore */ }
         statusEl.textContent = 'Erreur de chargement';
       }
     }
@@ -164,6 +408,9 @@ function getUrlParameter(name) {
     try {
       const isPreview = new URLSearchParams(window.location.search).has('historyId');
       if (isPreview) return;
+      // When opened via file://, browser fetch of local files often fails with TypeError: Failed to fetch.
+      // To avoid noisy console errors, disable dynamic sync under file protocol.
+      if (window.location && window.location.protocol === 'file:') return;
     } catch (e) {}
 
     const contentConfig = [

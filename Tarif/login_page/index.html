@@ -24,7 +24,14 @@
             </select>
             <label for="password">Entrez votre mot de passe :</label>
             <input type="password" id="password" name="password" required>
+            <label class="remember-wrap">
+                <input type="checkbox" id="rememberMe" name="rememberMe">
+                Mémoriser le mot de passe
+            </label>
             <button type="submit">Se connecter</button>
+            <p style="margin-top:8px;">
+                <a href="forgot_password.html">Mot de passe oublié ?</a>
+            </p>
         </form>
         <div id="downloadLinks" style="display:none;">
             <h2>Téléchargements disponibles :</h2>
@@ -33,6 +40,16 @@
     </main>
     <script>
         // Redirection après connexion selon le rôle sélectionné
+        // Pré-remplissage si "Mémoriser" a été activé
+        document.addEventListener('DOMContentLoaded', function() {
+            const savedRole = localStorage.getItem('savedRole');
+            const remember = localStorage.getItem('rememberMe') === 'true';
+            if (savedRole) document.getElementById('role').value = savedRole;
+            const savedPassword = remember ? localStorage.getItem('savedPassword') : '';
+            if (savedPassword) document.getElementById('password').value = savedPassword;
+            const rememberEl = document.getElementById('rememberMe');
+            if (rememberEl) rememberEl.checked = remember;
+        });
         document.getElementById('roleForm').addEventListener('submit', function(e) {
             e.preventDefault();
             const role = document.getElementById('role').value; // Now "Tarif Grossiste", etc.
@@ -58,6 +75,17 @@
 
             if (password === passwords[role]) {
                 sessionStorage.setItem('userRole', role);
+                // Gestion du "Mémoriser le mot de passe"
+                const remember = document.getElementById('rememberMe')?.checked;
+                if (remember) {
+                    localStorage.setItem('rememberMe', 'true');
+                    localStorage.setItem('savedRole', role);
+                    localStorage.setItem('savedPassword', password);
+                } else {
+                    localStorage.setItem('rememberMe', 'false');
+                    localStorage.removeItem('savedRole');
+                    localStorage.removeItem('savedPassword');
+                }
                 window.location.href = pages[role];
             } else {
                 alert("Mot de passe incorrect.");

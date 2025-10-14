@@ -2,6 +2,13 @@
 /* Newsletter page: tile/hero overrides previously inline in newsletter.html */
 .newsletter-hero img { box-shadow: none !important; border: none !important; }
 
+/* Hero horizontal padding on non-editor pages: 100px each side */
+body:not(.newsletter-editor) .newsletter-hero {
+  padding-left: 100px !important;
+  padding-right: 100px !important;
+  box-sizing: border-box;
+}
+
 /* Header/Footer font-size adjustments (+2px) on non-editor pages */
 body:not(.newsletter-editor) .header-logo-text { font-size: 14px !important; }
 body:not(.newsletter-editor) .lang-text,
@@ -76,11 +83,11 @@ body:not(.newsletter-editor) .mobile-lang-text:hover {
 .content-area { border: none !important; }
 .cards-grid.kyo-tiles { gap: 36px; }
 .kyo-tile { background: transparent; border: none; box-shadow: none; border-radius: 0; }
-.kyo-tile-media { display: block; position: relative; }
-.kyo-tile-media img { display: block; width: 100%; height: auto; aspect-ratio: 16 / 9; object-fit: cover; border-radius: 0; box-shadow: none; max-height: 320px; }
-.kyo-tile-plus { position: absolute; right: 0; bottom: 0; width: 72px; height: 72px; background: #12a7cf; color: #fff; display: flex; align-items: center; justify-content: center; font-size: 48px; font-weight: 400; line-height: 1; }
-.kyo-tile-body { padding-top: 18px; }
-.kyo-tile-body h3 { margin: 0 0 10px; font-size: 1.25rem; line-height: 1.35; }
+.kyo-tile-media { display: block; position: relative; border-radius: 6px; overflow: hidden; }
+.kyo-tile-media img { display: block; width: 100%; height: auto; aspect-ratio: 16 / 9; object-fit: contain; border-radius: 6px; box-shadow: none; max-height: 320px; }
+.kyo-tile-plus { position: absolute; right: 0; bottom: 0; width: 72px; height: 72px; background: #12a7cf; color: #fff; display: none !important; align-items: center; justify-content: center; font-size: 48px; font-weight: 400; line-height: 1; }
+.kyo-tile-body { padding-top: 5px; }
+.kyo-tile-body h3 { margin: 0 0 6px; font-size: 1.25rem; line-height: 1.35; }
 .kyo-tile-body p { margin: 0; color: #333; }
 @media (max-width: 768px) {
   /* Keep aspect-ratio; cap visual height for small screens */
@@ -94,13 +101,79 @@ body:not(.newsletter-editor) .mobile-lang-text:hover {
   .kyo-tile-media img { max-height: 360px; }
 }
 
-/* Responsive 3-column layout for index tiles */
-.cards-grid.kyo-tiles { grid-template-columns: 1fr; }
-@media (min-width: 768px) {
-  .cards-grid.kyo-tiles { grid-template-columns: repeat(2, 1fr); }
+/* Responsive auto-fit layout for index tiles: fill rows with min 240px tiles */
+.cards-grid.kyo-tiles {
+  grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
 }
-@media (min-width: 1024px) {
-  .cards-grid.kyo-tiles { grid-template-columns: repeat(3, 1fr); }
+/* Centered second section for dynamically loaded TypeNews articles */
+.cards-grid.kyo-tiles.dynamic-articles {
+  /* Fill remaining area within content padding; inherit 5-col layout from .kyo-tiles */
+  margin-left: auto;
+  margin-right: auto;
+  box-sizing: border-box;
+}
+/* Dynamic grid: use a consistent 16:9 media container so images (contain) center with bars */
+.cards-grid.kyo-tiles.dynamic-articles .kyo-tile-media { aspect-ratio: 16 / 9; }
+/* Base grid (non-dynamic) smart-fit container and image sizing */
+.cards-grid.kyo-tiles:not(.dynamic-articles) .kyo-tile-media { aspect-ratio: 16 / 9; }
+.cards-grid.kyo-tiles:not(.dynamic-articles) .kyo-tile-media img { width: 100% !important; height: 100% !important; }
+/* Apply fit behavior globally on tiles (both base and dynamic) */
+/* Global: never crop tile images */
+.cards-grid.kyo-tiles .kyo-tile-media img { width: 100% !important; height: 100% !important; object-fit: contain !important; background: transparent; }
+.kyo-tile-media.fit-cover img { object-fit: contain !important; }
+.kyo-tile-media.fit-contain img { object-fit: contain !important; }
+/* removed empty ruleset */
+
+/* Exact 20px side padding for main content on index-like pages (non-editor, non-accueil) */
+body:not(.newsletter-editor):not(.accueil-page) .content-area {
+  padding-left: 60px !important;
+  padding-right: 60px !important;
+  box-sizing: border-box; /* ensure exact 20px visible padding per side */
+}
+
+/* Larger thumbnail feel for dynamic articles (keep 5 per row) */
+.cards-grid.kyo-tiles.dynamic-articles .kyo-tile-media img {
+  /* Fill the 16:9 container without cropping */
+  height: 100% !important;
+  aspect-ratio: 16 / 9;
+  object-fit: contain;
+  position: relative;
+  z-index: 1; /* keep image above the blurred backdrop */
+}
+/* If JS detects near-16:9, allow full bleed without bars */
+.cards-grid.kyo-tiles.dynamic-articles .kyo-tile-media.fit-cover img { object-fit: contain !important; }
+.cards-grid.kyo-tiles.dynamic-articles .kyo-tile-media.fit-contain img { object-fit: contain !important; }
+
+/* Blurred backdrop to fill bars without altering the image */
+.cards-grid.kyo-tiles .kyo-tile-media,
+.cards-grid.kyo-tiles.dynamic-articles .kyo-tile-media {
+  position: relative; /* ensure ::before positions correctly */
+  overflow: hidden;  /* hide blur overflow */
+}
+.cards-grid.kyo-tiles .kyo-tile-media::before,
+.cards-grid.kyo-tiles.dynamic-articles .kyo-tile-media::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background-image: var(--tile-bg, none);
+  background-size: cover;
+  background-position: center;
+  filter: blur(12px);
+  transform: scale(1.1); /* slight scale to avoid blur edges */
+  opacity: 0.35; /* subtle to not overpower real image */
+  z-index: 0;
+  pointer-events: none;
+  border-radius: inherit; /* clip blur to rounded corners */
+}
+@media (min-width: 1440px) {
+  .cards-grid.kyo-tiles.dynamic-articles .kyo-tile-media img {
+    height: 100% !important;
+  }
+}
+@media (max-width: 1023px) {
+  .cards-grid.kyo-tiles.dynamic-articles .kyo-tile-media img {
+    height: 100% !important;
+  }
 }
 /* ==========================
    History Modal (scoped)
@@ -295,7 +368,7 @@ th { background:#f8f9fa; }
 
 /* Sidebar Navigation Styles - High Specificity */
 #leftSidebar.left-sidebar {
-    font-family: 'Montserrat', sans-serif !important;
+    font-family: Verdana, sans-serif !important;
     font-size: 14px !important;
     line-height: 1.5 !important;
     color: #333 !important;
@@ -586,7 +659,7 @@ body {
     display: flex;
     align-items: center;
     gap: 8px;
-    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    font-family: inherit;
     min-width: 600px;
 }
 
@@ -666,6 +739,66 @@ body {
 /* Remove drop shadow from two-column section columns (CSS-only, scoped) */
 .newsletter-editor .two-column-layout .column {
   box-shadow: none !important;
+}
+
+/*
+  Two-column layout adjustments (editor only):
+  - Zero horizontal padding on the section container
+  - Hairline gap between the two boxes (0.25px)
+  - Center divider same as background (invisible)
+*/
+.newsletter-editor .two-column-layout {
+  padding-left: 0 !important;
+  padding-right: 0 !important;
+  padding-top: 0 !important;
+  padding-bottom: 0 !important;
+  gap: 0.25px !important;
+  background-color: #ffffff !important; /* force white background */
+}
+
+.newsletter-editor .two-column-layout::before {
+  background: inherit !important; /* match section background */
+  mix-blend-mode: normal !important; /* neutralize blend so it disappears */
+}
+
+/*
+  Two-column layout adjustments for final output (non-editor pages):
+  - Zero horizontal padding on the section container
+  - Hairline gap between the two boxes (0.25px)
+  - Center divider same as background (invisible)
+*/
+body:not(.newsletter-editor) .two-column-layout {
+  padding-left: 0 !important;
+  padding-right: 0 !important;
+  padding-top: 0 !important;
+  padding-bottom: 0 !important;
+  gap: 0.25px !important;
+  background-color: #ffffff !important; /* force white background */
+}
+
+/* Zero spacing around the inner boxes (columns) */
+.newsletter-editor .two-column-layout .column {
+  margin: 0 !important;
+  padding: 0 !important; /* overrides inline padding:20px */
+}
+
+body:not(.newsletter-editor) .two-column-layout .column {
+  margin: 0 !important;
+  padding: 0 !important; /* overrides inline padding:20px */
+}
+
+body:not(.newsletter-editor) .two-column-layout::before {
+  background: inherit !important;
+  mix-blend-mode: normal !important;
+}
+
+/* Images inside two-column section: remove all margins (top/right/bottom/left) */
+.newsletter-editor .two-column-layout img {
+  margin: 0 !important; /* 0px 0px 0px 0px */
+}
+
+body:not(.newsletter-editor) .two-column-layout img {
+  margin: 0 !important; /* 0px 0px 0px 0px */
 }
 
 .toolbar-btn:hover {
@@ -1730,7 +1863,7 @@ footer.kyocera-footer *,
     display: flex;
     flex-direction: column;
     max-height: 90vh;
-    font-family: Arial, sans-serif;
+    font-family: inherit;
 }
 
 .modal-header {
@@ -3514,6 +3647,8 @@ body:not(.accueil-page) .main-content .content-wrapper .content-area {
   position: relative;
   padding-bottom: 10px;
   margin-bottom: 18px;
+  font-size: 52px; /* default editor/view size */
+  line-height: 1.2;
 }
 .content-area h1.title-accent::after {
   content: "";
@@ -3525,8 +3660,14 @@ body:not(.accueil-page) .main-content .content-wrapper .content-area {
   margin-top: 10px;
 }
 
+/* Non-editor pages: smaller hero title without affecting editor or JS sync */
+body:not(.newsletter-editor) .content-area h1.title-accent {
+  font-size: 32px !important;
+  line-height: 1.25;
+}
+
 .content-area .lead {
-  font-size: 1.2rem;
+  font-size: 22px; /* resume size per request */
   line-height: 1.6;
   color: #1a1a1a;
 }
@@ -3603,6 +3744,20 @@ body:not(.accueil-page) .main-content .content-wrapper .content-area {
 }
 .quote-section blockquote {
   border-left: 0 !important; /* remove red vertical line */
+}
+
+/* Editor-only: keep indent (which uses <blockquote>) visually neutral */
+.newsletter-editor blockquote {
+  border: none !important;
+  background: transparent !important;
+  background-color: transparent !important;
+  padding: 0 !important;
+  /* keep a simple left indent without altering layout */
+  margin: 0 0 0 2em !important;
+}
+.newsletter-editor blockquote * {
+  background: transparent !important;
+  background-color: transparent !important;
 }
 
 /* Webinars two-column layout */

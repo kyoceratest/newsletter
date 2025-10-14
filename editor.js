@@ -24,16 +24,330 @@ class NewsletterEditor {
         this.storageVersion = '2';
         // Track last user action for history subtitle
         this.lastAction = 'Contenu modifié';
+        // Initialize editor (wire buttons, toolbars, handlers)
         this.init();
+    }
+
+    // Normalize any blob-based video sources to media/<filename> on page load (so refresh keeps videos playable)
+    static normalizeLocalVideoSourcesOnLoad() {
+        try {
+            const host = document.getElementById('editableContent') || document;
+            // For <video src> directly
+            Array.from(host.querySelectorAll('video[src]')).forEach(v => {
+                const raw = v.getAttribute('src') || '';
+                if (/^blob:/i.test(raw)) {
+                    const hint = v.getAttribute('data-local-filename') || '';
+                    if (hint) {
+                        const safe = hint.replace(/^[\\\/]+/, '');
+                        v.setAttribute('src', 'media/' + encodeURIComponent(safe));
+                    }
+                }
+            });
+            // For <source src> inside media
+            Array.from(host.querySelectorAll('video source[src], audio source[src]')).forEach(s => {
+                const raw = s.getAttribute('src') || '';
+                if (/^blob:/i.test(raw)) {
+                    let hint = s.getAttribute('data-local-filename') || '';
+                    if (!hint) {
+                        try { const parent = s.closest('video,audio'); hint = parent ? (parent.getAttribute('data-local-filename') || '') : ''; } catch (_) {}
+                    }
+                    if (hint) {
+                        const safe = hint.replace(/^[\\\/]+/, '');
+                        s.setAttribute('src', 'media/' + encodeURIComponent(safe));
+                    }
+                }
+            });
+        } catch (_) { /* ignore */ }
+    }
+
+    // Open a sanitized, read-only preview in a new tab without altering the editor UI
+    preview() {
+        try {
+            this.previewFull();
+        } catch (e) {
+            console.error('Preview failed:', e);
+        }
+    }
+    // Full-page preview with site header/footer and styles.css
+    previewFull() {
+        try {
+            const editableContent = document.getElementById('editableContent');
+            if (!editableContent) return;
+
+            // Clone current content
+            const tempDiv = document.createElement('div');
+            tempDiv.innerHTML = editableContent.innerHTML;
+
+            // Sanitize editor-only controls
+            try {
+                const removeSelectors = [
+                    '.add-image-placeholder',
+                    '.add-more-btn',
+                    '.image-toolbar',
+                    '.resize-handle',
+                    '.rotation-handle',
+                    '.gallery-upload',
+                    '.gallery-controls',
+                    '.gallery-editor-only',
+                    '.gallery-actions',
+                    'input[type="file"]'
+                ];
+                removeSelectors.forEach(sel => tempDiv.querySelectorAll(sel).forEach(el => el.remove()));
+
+                const buttonTextsToRemove = [
+                    'Ajouter une image',
+                    'Modifier la galerie',
+                    "Ajouter plus d'images"
+                ];
+                tempDiv.querySelectorAll('button, a').forEach(el => {
+                    const txt = (el.innerText || el.textContent || '').trim().toLowerCase();
+                    if (buttonTextsToRemove.some(t => txt.includes(t.toLowerCase()))) {
+                        el.remove();
+                    }
+                });
+
+                tempDiv.querySelectorAll('[class*="placeholder"]').forEach(el => el.remove());
+                tempDiv.querySelectorAll('[data-editor-only], [data-placeholder], [data-editable-control]').forEach(el => el.remove());
+                tempDiv.querySelectorAll('[contenteditable]').forEach(el => el.removeAttribute('contenteditable'));
+            } catch (_) { /* best effort */ }
+
+            const pageTitle = (document.querySelector('h1, h2, h3')?.textContent || document.title || 'Aperçu').trim();
+
+            const headerHTML = `
+<header class="kyocera-header">
+  <div class="header-top desktop-header">
+    <div class="header-logo">
+      <a href="https://www.kyoceradocumentsolutions.fr/fr.html">
+        <img src="Image/logo.png" />
+      </a>
+      <span class="header-logo-text">KYOCERA Document Solutions</span>
+    </div>
+    <div class="header-lang-account">
+      <a href="https://www.kyoceradocumentsolutions.fr/fr/about-us/contact-us/kyocera-worldwide.html" class="lang-text">
+        <img src="Image/fr.svg" alt="France" class="flag-icon" />
+        FR France
+      </a>
+      <a href="https://mykyocera.kyoceradocumentsolutions.fr/fr.html" class="account-text">My Kyocera</a>
+    </div>
+  </div>
+  <div class="mobile-header">
+    <div class="mobile-header-top">
+      <div class="header-logo">
+        <a href="https://www.kyoceradocumentsolutions.fr/fr.html">
+          <img src="Image/logo.png" />
+        </a>
+        <span class="header-logo-text">KYOCERA Document Solutions</span>
+      </div>
+    </div>
+    <div class="mobile-header-bottom">
+      <a href="https://www.kyoceradocumentsolutions.fr/fr/about-us/contact-us/kyocera-worldwide.html" class="mobile-lang-text">
+        <i class="fas fa-globe"></i>
+        FR / France
+      </a>
+      <div class="mobile-icons-group">
+        <a href="https://mykyocera.kyoceradocumentsolutions.fr/fr.html">
+          <img src="Image/mykyocer.svg" alt="My Kyocera" class="mobile-user-icon" />
+        </a>
+        <button class="hamburger mobile-hamburger" id="hamburger"><span></span><span></span><span></span></button>
+      </div>
+    </div>
+  </div>
+  <nav class="header-nav" id="headerNav">
+    <ul class="nav-menu">
+      <li><a href="https://www.kyoceradocumentsolutions.fr/fr/smarter-workspaces.html">Espaces de travail intelligents</a></li>
+      <li><a href="https://www.kyoceradocumentsolutions.fr/fr/content-services.html">Business Solutions</a></li>
+      <li><a href="https://www.kyoceradocumentsolutions.fr/fr/products.html">Produits</a></li>
+      <li><a href="https://www.kyoceradocumentsolutions.fr/fr/support.html">Support</a></li>
+      <li><a href="https://www.kyoceradocumentsolutions.fr/fr/about-us.html">Qui sommes-nous</a></li>
+    </ul>
+  </nav>
+</header>`;
+
+            const footerHTML = `
+<footer class="kyocera-footer">
+  <div class="footer-content">
+    <div class="footer-main desktop-footer">
+      <div class="footer-row footer-row-1">
+        <div class="footer-social-icons">
+          <a href="https://www.facebook.com/KyoceraDocumentSolutionsFrance/"><img src="Image/facebook.png" alt="Facebook" /></a>
+          <a href="https://www.linkedin.com/company/kyocera-document-solutions-france/posts/?feedView=all"><img src="Image/linkin.png" alt="LinkedIn" /></a>
+          <a href="https://www.youtube.com/user/kdfrsas"><img src="Image/video.png" alt="YouTube" /></a>
+        </div>
+      </div>
+      <div class="footer-row footer-row-2">
+        <div class="footer-left">
+          <div class="footer-links">
+            <a href="https://www.kyoceradocumentsolutions.fr/fr/about-us/contact-us.html">Nous contacter</a>
+            <a href="https://www.kyoceradocumentsolutions.fr/fr/footer/privacy-and-cookie-centre.html">Utilisation des cookies</a>
+            <a href="https://www.kyoceradocumentsolutions.fr/fr/footer/data-request.html">Politique de gestion des données personnelles</a>
+          </div>
+        </div>
+        <div class="footer-right">
+          <div class="footer-copyright">©2025 KYOCERA Document Solutions France S.A.S.</div>
+        </div>
+      </div>
+      <div class="footer-row footer-row-3">
+        <div class="footer-left">
+          <div class="footer-links">
+            <a href="https://www.kyoceradocumentsolutions.fr/fr/footer/terms-of-use.html">Conditions d'utilisation et restrictions légales</a>
+            <a href="https://www.kyoceradocumentsolutions.fr/fr/footer/legal-notices.html">Conditions Générales de Vente</a>
+            <a href="https://www.kyoceradocumentsolutions.fr/fr/gdpr-preferences.html">Gérer vos cookies</a>
+            <a href="https://www.kyoceradocumentsolutions.fr/fr/about-us/contact-us/press.html">Presse</a>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="footer-main mobile-footer">
+      <div class="mobile-footer-social">
+        <a href="https://www.facebook.com/kyoceradocumentsolutions"><img src="Image/facebook.png" alt="Facebook" /></a>
+        <a href="https://www.linkedin.com/company/kyocera-document-solutions"><img src="Image/linkin.png" alt="LinkedIn" /></a>
+        <a href="https://www.youtube.com/user/kyoceradocumentsolutions"><img src="Image/video.png" alt="YouTube" /></a>
+      </div>
+      <div class="mobile-footer-links">
+        <a href="https://www.kyoceradocumentsolutions.fr/fr/about-us/contact-us.html">Nous contacter</a>
+        <a href="https://www.kyoceradocumentsolutions.fr/fr/footer/privacy-and-cookie-centre.html">Utilisation des cookies</a>
+        <a href="https://www.kyoceradocumentsolutions.fr/fr/footer/data-request.html">Politique de gestion des données personnelles</a>
+        <a href="https://www.kyoceradocumentsolutions.fr/fr/footer/terms-of-use.html">Conditions d'utilisation et restrictions légales</a>
+        <a href="https://www.kyoceradocumentsolutions.fr/fr/footer/legal-notices.html">Conditions Générales de Vente</a>
+        <a href="https://www.kyoceradocdocumentsolutions.fr/fr/gdpr-preferences.html">Gérer vos cookies</a>
+        <a href="https://www.kyoceradocumentsolutions.fr/fr/about-us/contact-us/press.html">Presse</a>
+      </div>
+      <div class="mobile-footer-copyright">©2025 KYOCERA Document Solutions France S.A.S.</div>
+    </div>
+  </div>
+</footer>`;
+
+            const mainHTML = `<main class="main-content"><div class="content-wrapper"><div class="content-area">${tempDiv.innerHTML}</div></div></main>`;
+
+            const fullHTML = `<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>${pageTitle}</title>
+  <link rel="stylesheet" href="styles.css" />
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css"/>
+  <link rel="icon" type="image/png" href="Image/logo.png"/>
+  <style> *{user-select:none;-webkit-user-select:none;-moz-user-select:none;-ms-user-select:none} [contenteditable]{pointer-events:none} :focus{outline:none!important} </style>
+</head>
+<body>
+  ${headerHTML}
+  ${mainHTML}
+  ${footerHTML}
+</body>
+</html>`;
+
+            const w = window.open('about:blank', '_blank');
+            if (w && w.document) {
+                w.document.open();
+                w.document.write(fullHTML);
+                w.document.close();
+            }
+        } catch (e) {
+            console.error('Preview (full) failed:', e);
+        }
+    }
+
+    // Safely delete an image wrapper while preserving adjacent text content
+    deleteImageWrapperSafe(wrapper) {
+        if (!wrapper || !wrapper.parentNode) return;
+        const parent = wrapper.parentNode;
+        const prev = wrapper.previousSibling;
+        const next = wrapper.nextSibling;
+
+        // If two text nodes would become adjacent without a space, insert one
+        let spacer = null;
+        const prevText = prev && prev.nodeType === Node.TEXT_NODE ? prev.nodeValue : null;
+        const nextText = next && next.nodeType === Node.TEXT_NODE ? next.nodeValue : null;
+        const needSpace = !!(prevText !== null && nextText !== null && !/\s$/.test(prevText) && !/^\s/.test(nextText));
+        if (needSpace) {
+            spacer = document.createTextNode(' ');
+            parent.insertBefore(spacer, wrapper);
+        }
+
+        // Remove wrapper (image + any handles)
+        parent.removeChild(wrapper);
+
+        // Place caret after spacer or before next sibling to avoid deleting nearby text
+        try {
+            const sel = window.getSelection();
+            if (sel) {
+                const range = document.createRange();
+                if (spacer && spacer.parentNode) {
+                    range.setStartAfter(spacer);
+                } else if (next && next.parentNode === parent) {
+                    range.setStart(parent, Array.prototype.indexOf.call(parent.childNodes, next));
+                } else if (prev && prev.parentNode === parent) {
+                    // After previous node
+                    const idx = Array.prototype.indexOf.call(parent.childNodes, prev);
+                    range.setStart(parent, idx + 1);
+                } else {
+                    range.selectNodeContents(parent);
+                    range.collapse(false);
+                }
+                range.collapse(true);
+                sel.removeAllRanges();
+                sel.addRange(range);
+            }
+        } catch (_) { /* no-op */ }
+
+        // Persist editor state
+        try {
+            this.saveState();
+            this.updateLastModified();
+            this.autoSaveToLocalStorage();
+            this.lastAction = "Image supprimée";
+        } catch (_) { /* no-op */ }
     }
 
     init() {
         console.log('NewsletterEditor initializing...');
         this.setupEventListeners();
-        this.restoreFromLocalStorage(); // Restore previous content if available
+        // Auto-restore last edit if available so placeholders are not shown after refresh
+        try { this.restoreLastFromLocalStorage(); } catch (_) { /* no-op */ }
         this.saveState(); // Save initial state
         this.updateLastModified();
         console.log('NewsletterEditor initialized successfully');
+    }
+
+    // Restore the most recent saved content from localStorage history into the editor
+    restoreLastFromLocalStorage() {
+        try {
+            const editable = document.getElementById('editableContent');
+            if (!editable) return;
+            let history = [];
+            try {
+                const raw = localStorage.getItem('newsletterHistory');
+                history = raw ? JSON.parse(raw) : [];
+                if (!Array.isArray(history)) history = [];
+            } catch (_) { history = []; }
+            if (history.length === 0) return;
+            const latest = history[0];
+            const slimHtml = (latest && typeof latest.content === 'string') ? latest.content : '';
+            const id = latest && latest.id ? String(latest.id) : '';
+            // Prefer the full HTML from IndexedDB (keeps <img src> intact); fallback to slim localStorage copy
+            if (id && typeof getFullContentFromIDB === 'function') {
+                try {
+                    getFullContentFromIDB(id).then((full) => {
+                        const html = (full && typeof full === 'string' && full.length > 0) ? full : slimHtml;
+                        if (html) {
+                            editable.innerHTML = html;
+                            try { this.saveState(); this.updateLastModified(); this.lastAction = 'Restauration automatique'; } catch (_) {}
+                        }
+                    }).catch(() => {
+                        if (slimHtml) {
+                            editable.innerHTML = slimHtml;
+                            try { this.saveState(); this.updateLastModified(); this.lastAction = 'Restauration automatique'; } catch (_) {}
+                        }
+                    });
+                    return; // async path handles update
+                } catch (_) { /* fall through to slim */ }
+            }
+            if (slimHtml) {
+                editable.innerHTML = slimHtml;
+                try { this.saveState(); this.updateLastModified(); this.lastAction = 'Restauration automatique'; } catch (_) {}
+            }
+        } catch (_) { /* ignore */ }
     }
 
     setupEventListeners() {
@@ -233,6 +547,120 @@ class NewsletterEditor {
         document.getElementById('twoColumnSectionBtn').addEventListener('click', () => {
             this.insertTwoColumnSection();
         });
+
+        // Import buttons (HTML / Excel)
+        const importBtn = document.getElementById('importBtn');
+        if (importBtn) {
+            importBtn.addEventListener('click', () => {
+                const options = document.getElementById('importOptions');
+                if (options) options.style.display = options.style.display === 'none' ? 'block' : 'none';
+            });
+        }
+
+        const importHtmlBtn = document.getElementById('importHtmlBtn');
+        if (importHtmlBtn) {
+            importHtmlBtn.addEventListener('click', () => {
+                try {
+                    const sel = window.getSelection();
+                    if (sel && sel.rangeCount > 0) this.lastMouseRange = sel.getRangeAt(0).cloneRange();
+                } catch (_) {}
+                const input = document.createElement('input');
+                input.type = 'file';
+                input.accept = '.html,.htm,text/html';
+                input.onchange = (e) => {
+                    const file = e.target.files && e.target.files[0];
+                    if (!file) return;
+                    const reader = new FileReader();
+                    reader.onload = () => {
+                        try {
+                            const htmlText = String(reader.result || '');
+                            const parser = new DOMParser();
+                            const doc = parser.parseFromString(htmlText, 'text/html');
+                            const container = document.createElement('div');
+                            container.className = 'imported-html';
+                            const source = doc.body || doc;
+                            // Minimal sanitization: remove scripts
+                            source.querySelectorAll('script').forEach(n => n.remove());
+                            // Move children into container
+                            Array.from(source.childNodes).forEach(node => {
+                                container.appendChild(node.cloneNode(true));
+                            });
+                            this.insertElementAtCursor(container);
+                            this.saveState();
+                            this.updateLastModified();
+                            this.autoSaveToLocalStorage();
+                            this.lastAction = 'Contenu HTML importé';
+                        } catch (err) {
+                            console.error('Import HTML failed:', err);
+                            alert("Échec de l'import HTML");
+                        }
+                    };
+                    reader.readAsText(file, 'utf-8');
+                };
+                input.click();
+                const options = document.getElementById('importOptions');
+                if (options) options.style.display = 'none';
+            });
+        }
+
+        const importExcelBtn = document.getElementById('importExcelBtn');
+        if (importExcelBtn) {
+            importExcelBtn.addEventListener('click', () => {
+                try {
+                    const sel = window.getSelection();
+                    if (sel && sel.rangeCount > 0) this.lastMouseRange = sel.getRangeAt(0).cloneRange();
+                } catch (_) {}
+                const input = document.createElement('input');
+                input.type = 'file';
+                input.accept = '.xlsx,.xls,.csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel,text/csv';
+                input.onchange = (e) => {
+                    const file = e.target.files && e.target.files[0];
+                    if (!file) return;
+                    if (typeof XLSX === 'undefined') {
+                        alert("Bibliothèque Excel non chargée. Veuillez vérifier votre connexion internet.");
+                        return;
+                    }
+                    const reader = new FileReader();
+                    reader.onload = () => {
+                        try {
+                            const data = new Uint8Array(reader.result);
+                            const wb = XLSX.read(data, { type: 'array' });
+                            const first = wb.SheetNames && wb.SheetNames[0];
+                            if (!first) throw new Error('Aucune feuille trouvée');
+                            const ws = wb.Sheets[first];
+                            // Generate HTML for the first sheet
+                            let html = XLSX.utils.sheet_to_html(ws, { header: '', footer: '' });
+                            // Parse and style table similar to insertTable default styles
+                            const parser = new DOMParser();
+                            const doc = parser.parseFromString(html, 'text/html');
+                            const table = doc.querySelector('table');
+                            if (!table) throw new Error('Table non générée');
+                            table.style.cssText = 'width: 100%; border-collapse: collapse; margin: 20px 0;';
+                            table.querySelectorAll('th, td').forEach(cell => {
+                                cell.style.cssText = 'border: 1px solid #ddd; padding: 8px; text-align: left;';
+                                cell.contentEditable = true;
+                            });
+                            // Wrap into a container to insert as a single element
+                            const wrapper = document.createElement('div');
+                            wrapper.className = 'imported-excel';
+                            wrapper.appendChild(table);
+                            this.insertElementAtCursor(wrapper);
+                            this.saveState();
+                            this.updateLastModified();
+                            this.autoSaveToLocalStorage();
+                            this.lastAction = 'Tableau Excel importé';
+                        } catch (err) {
+                            console.error('Import Excel failed:', err);
+                            alert("Échec de l'import Excel");
+                        }
+                    };
+                    reader.readAsArrayBuffer(file);
+                };
+                input.click();
+                const options = document.getElementById('importOptions');
+                if (options) options.style.display = 'none';
+            });
+        }
 
         // Action buttons
         document.getElementById('undoBtn').addEventListener('click', () => {
@@ -465,21 +893,22 @@ class NewsletterEditor {
             this.hideTableToolbar();
         });
 
-        // Add keyboard support for deleting selected images
+        // Add keyboard support for deleting images, even when the caret is just next to them
         document.getElementById('editableContent').addEventListener('keydown', (e) => {
             if (e.key === 'Delete' || e.key === 'Backspace') {
                 const selection = window.getSelection();
                 if (selection.rangeCount > 0) {
                     const range = selection.getRangeAt(0);
                     const selectedElement = range.commonAncestorContainer;
-                    
-                    // Check if an image or image wrapper is selected
+
+                    // 1) Detect if an image (or its wrapper) is actually selected
                     let imageWrapper = null;
                     if (selectedElement.nodeType === Node.ELEMENT_NODE) {
-                        if (selectedElement.classList && selectedElement.classList.contains('image-wrapper')) {
-                            imageWrapper = selectedElement;
-                        } else if (selectedElement.tagName === 'IMG') {
-                            imageWrapper = selectedElement.closest('.image-wrapper');
+                        const el = selectedElement;
+                        if (el.classList && el.classList.contains('image-wrapper')) {
+                            imageWrapper = el;
+                        } else if (el.tagName === 'IMG') {
+                            imageWrapper = el.closest('.image-wrapper');
                         }
                     } else if (selectedElement.parentElement) {
                         const parent = selectedElement.parentElement;
@@ -489,14 +918,72 @@ class NewsletterEditor {
                             imageWrapper = parent.closest('.image-wrapper');
                         }
                     }
-                    
+
+                    // 2) If nothing is selected (collapsed caret), check adjacency to an image so text next to image isn't deleted silently
+                    if (!imageWrapper && selection.isCollapsed) {
+                        // Helper to resolve node at caret boundary and find adjacent sibling in the right direction
+                        const getAdjacentNode = (rng, direction) => {
+                            let container = rng.startContainer;
+                            let offset = rng.startOffset;
+
+                            // If we're inside a text node, adjacent sibling depends on offset
+                            if (container.nodeType === Node.TEXT_NODE) {
+                                const parent = container.parentNode;
+                                if (!parent) return null;
+                                // Backspace removes previous content at start of text node
+                                if (direction === 'backward' && offset === 0) {
+                                    return parent.childNodes[parent.childNodes.length ? Array.prototype.indexOf.call(parent.childNodes, container) - 1 : -1] || container.previousSibling;
+                                }
+                                // Delete removes next content at end of text node
+                                if (direction === 'forward' && offset === container.nodeValue.length) {
+                                    return container.nextSibling;
+                                }
+                                return null;
+                            }
+
+                            // If we're in an element node, use offset to get child or neighbor
+                            if (container.nodeType === Node.ELEMENT_NODE) {
+                                const child = container.childNodes[offset] || null;
+                                if (direction === 'forward') {
+                                    // If the child is an element, it's the candidate; otherwise the next sibling
+                                    return child || container.childNodes[offset] || null;
+                                } else {
+                                    // Backward: previous sibling of the position
+                                    return container.childNodes[offset - 1] || null;
+                                }
+                            }
+                            return null;
+                        };
+
+                        const dir = (e.key === 'Backspace') ? 'backward' : 'forward';
+                        let neighbor = null;
+                        // Only consider TEXT_NODE boundaries to avoid false positives while editing inside elements
+                        const container = range.startContainer;
+                        const offset = range.startOffset;
+                        if (container && container.nodeType === Node.TEXT_NODE) {
+                            if (dir === 'backward' && offset === 0) {
+                                neighbor = container.previousSibling;
+                            } else if (dir === 'forward' && offset === container.nodeValue.length) {
+                                neighbor = container.nextSibling;
+                            }
+                        }
+
+                        if (neighbor && neighbor.nodeType === Node.ELEMENT_NODE) {
+                            // Immediate sibling must be an image wrapper or IMG node
+                            if (neighbor.classList && neighbor.classList.contains('image-wrapper')) {
+                                imageWrapper = neighbor;
+                            } else if (neighbor.tagName === 'IMG') {
+                                imageWrapper = neighbor;
+                            }
+                        }
+                    }
+
+                    // 3) If we determined an image wrapper to delete, intercept and confirm
                     if (imageWrapper) {
                         e.preventDefault();
+                        e.stopPropagation();
                         if (confirm('Êtes-vous sûr de vouloir supprimer cette image ?')) {
-                            imageWrapper.remove();
-                            this.saveState();
-                            this.updateLastModified();
-                            this.autoSaveToLocalStorage();
+                            this.deleteImageWrapperSafe(imageWrapper);
                         }
                     }
                 }
@@ -821,6 +1308,16 @@ class NewsletterEditor {
                 this.restoreSelection();
             }
         });
+        // Preview shortcut: Ctrl+Shift+P opens a sanitized preview in a new tab
+        document.addEventListener('keydown', (ev) => {
+            try {
+                const key = ev.key || ev.code;
+                if (ev.ctrlKey && ev.shiftKey && (key === 'P' || key === 'KeyP')) {
+                    ev.preventDefault();
+                    this.previewFull();
+                }
+            } catch (_) { /* no-op */ }
+        });
 
         // Font family
         document.getElementById('fontFamily').addEventListener('change', (e) => {
@@ -936,7 +1433,11 @@ class NewsletterEditor {
                 if (node.nodeType === Node.TEXT_NODE) node = node.parentElement;
                 const targetEl = node && node.closest && node.closest('h1,h2,h3,h4,h5,h6,p,div,span,li');
                 if (targetEl) {
+                    // Apply to the target
                     targetEl.style.lineHeight = lh;
+                    // Also apply to indent wrapper, if present, so wrapper doesn't block effect
+                    const wrap = targetEl.querySelector && targetEl.querySelector('span[data-indent-wrap="1"]');
+                    if (wrap) wrap.style.lineHeight = lh;
                     this.saveSelection();
                     this.saveState();
                     return;
@@ -945,14 +1446,22 @@ class NewsletterEditor {
 
             // Non-collapsed: wrap selection in span to apply line-height
             try {
-                const span = document.createElement('span');
-                span.style.lineHeight = lh;
-                span.appendChild(range.extractContents());
-                range.insertNode(span);
-                const newRange = document.createRange();
-                newRange.selectNodeContents(span);
-                selection.removeAllRanges();
-                selection.addRange(newRange);
+                // If selection is within a block that already has an indent wrapper, set on that wrapper instead of creating nested spans
+                let hostNode = range.commonAncestorContainer;
+                if (hostNode.nodeType === Node.TEXT_NODE) hostNode = hostNode.parentElement;
+                const wrap = hostNode && (hostNode.closest && hostNode.closest('span[data-indent-wrap="1"]'));
+                if (wrap) {
+                    wrap.style.lineHeight = lh;
+                } else {
+                    const span = document.createElement('span');
+                    span.style.lineHeight = lh;
+                    span.appendChild(range.extractContents());
+                    range.insertNode(span);
+                    const newRange = document.createRange();
+                    newRange.selectNodeContents(span);
+                    selection.removeAllRanges();
+                    selection.addRange(newRange);
+                }
                 this.saveSelection();
                 this.saveState();
             } catch (ex) {
@@ -1163,12 +1672,112 @@ class NewsletterEditor {
             execWithRestore('insertOrderedList');
         });
 
+        // Helper: pick a safe inner text block to nudge
+        const getIndentTargetBlock = () => {
+            const sel = window.getSelection();
+            if (!sel || sel.rangeCount === 0) return null;
+            const range = sel.getRangeAt(0);
+            let node = range.startContainer;
+            if (node.nodeType === Node.TEXT_NODE) node = node.parentElement;
+            const editableHost = document.getElementById('editableContent');
+            if (!editableHost) return null;
+            // If inside list item, return that LI to allow style-based nudge
+            if (node.closest && node.closest('li')) {
+                const li = node.closest('li');
+                return li && editableHost.contains(li) ? li : null;
+            }
+            // If inside a list but not in an LI (e.g., cursor around the list), target UL/OL as group
+            if (node.closest) {
+                const listEl = node.closest('ul,ol');
+                if (listEl && editableHost.contains(listEl)) return listEl;
+            }
+            // Find closest text block (prioritize text elements)
+            let block = node.closest && node.closest('p,h1,h2,h3,h4,h5,h6,li');
+            // If not found, allow a safe DIV that is not a layout container
+            if ((!block) && node.closest) {
+                const candidateDiv = node.closest('div');
+                const forbiddenDivs = ['newsletter-section','two-column-layout','gallery-section','syc-item','newsletter-container','column'];
+                if (candidateDiv && editableHost.contains(candidateDiv) && candidateDiv !== editableHost) {
+                    const isForbidden = forbiddenDivs.some(cls => candidateDiv.classList && candidateDiv.classList.contains(cls));
+                    if (!isForbidden) block = candidateDiv;
+                }
+            }
+            if (!block || !editableHost.contains(block)) return null;
+            // Never target the editable host itself
+            if (block === editableHost) return null;
+            // Avoid large layout containers
+            const forbidden = ['newsletter-section','two-column-layout','gallery-section','syc-item','newsletter-container'];
+            if (forbidden.some(cls => block.classList && block.classList.contains(cls))) return null;
+            return block;
+        };
+
         document.getElementById('indentBtn').addEventListener('click', () => {
-            execWithRestore('indent');
+            // If inside a list, keep native behavior (nest list items)
+            this.restoreSelection();
+            const target = getIndentTargetBlock();
+            if (target && (target.tagName === 'LI' || target.tagName === 'UL' || target.tagName === 'OL')) {
+                // Nudge the list item or list as a whole to the right (bullet follows)
+                const cur = parseFloat(window.getComputedStyle(target).marginLeft) || 0;
+                const next = Math.min(cur + 32, 320);
+                target.style.marginLeft = next + 'px';
+                this.saveSelection();
+                this.saveState();
+                return;
+            }
+            if (!target) { execWithRestore('indent'); return; }
+            // Apply indent to an inner wrapper so the container layout doesn't shift
+            let wrap = target.querySelector('span[data-indent-wrap="1"]');
+            if (!wrap) {
+                wrap = document.createElement('span');
+                wrap.setAttribute('data-indent-wrap', '1');
+                wrap.style.display = 'inline-block';
+                wrap.style.width = '100%';
+                wrap.style.boxSizing = 'border-box';
+                // Move existing children into the wrapper
+                while (target.firstChild) {
+                    wrap.appendChild(target.firstChild);
+                }
+                target.appendChild(wrap);
+            }
+            const curPad = parseFloat(window.getComputedStyle(wrap).paddingLeft) || 0;
+            const next = Math.min(curPad + 32, 320);
+            wrap.style.paddingLeft = next + 'px';
+            this.saveSelection();
+            this.saveState();
         });
 
         document.getElementById('outdentBtn').addEventListener('click', () => {
-            execWithRestore('outdent');
+            // If inside a list, keep native behavior (un-nest list items)
+            this.restoreSelection();
+            const target = getIndentTargetBlock();
+            if (target && (target.tagName === 'LI' || target.tagName === 'UL' || target.tagName === 'OL')) {
+                const cur = parseFloat(window.getComputedStyle(target).marginLeft) || 0;
+                const next = Math.max(cur - 32, 0);
+                target.style.marginLeft = next + 'px';
+                this.saveSelection();
+                this.saveState();
+                return;
+            }
+            if (!target) { execWithRestore('outdent'); return; }
+            let wrap = target.querySelector('span[data-indent-wrap="1"]');
+            if (!wrap) {
+                // Nothing to outdent; fallback to native for lists already handled above
+                this.saveSelection();
+                this.saveState();
+                return;
+            }
+            const curPad = parseFloat(window.getComputedStyle(wrap).paddingLeft) || 0;
+            const next = Math.max(curPad - 32, 0);
+            wrap.style.paddingLeft = next + 'px';
+            if (next === 0) {
+                // unwrap to keep DOM clean
+                while (wrap.firstChild) {
+                    target.insertBefore(wrap.firstChild, wrap);
+                }
+                wrap.remove();
+            }
+            this.saveSelection();
+            this.saveState();
         });
 
         // Link button
@@ -2299,16 +2908,18 @@ class NewsletterEditor {
         });
 
         // Delete image button
-        document.getElementById('deleteImageBtn').addEventListener('click', () => {
+        document.getElementById('deleteImageBtn').addEventListener('click', (ev) => {
             if (this.currentEditingImage) {
                 if (confirm('Êtes-vous sûr de vouloir supprimer cette image ?')) {
                     // Find the image wrapper and remove it
                     const wrapper = this.currentEditingImage.closest('.image-wrapper');
                     if (wrapper) {
-                        wrapper.remove();
+                        ev && ev.preventDefault && ev.preventDefault();
+                        ev && ev.stopPropagation && ev.stopPropagation();
+                        this.deleteImageWrapperSafe(wrapper);
                     } else {
                         // Fallback: remove the image directly
-                        this.currentEditingImage.remove();
+                        this.deleteImageWrapperSafe(this.currentEditingImage);
                     }
                     
                     // Hide the image toolbar
@@ -2316,12 +2927,6 @@ class NewsletterEditor {
                     
                     // Clear current editing image reference
                     this.currentEditingImage = null;
-                    
-                    // Save state and update
-                    this.saveState();
-                    this.updateLastModified();
-                    this.autoSaveToLocalStorage();
-                    this.lastAction = 'Image supprimée';
                 }
             }
         });
@@ -3876,6 +4481,12 @@ class NewsletterEditor {
         const img = document.createElement('img');
         img.src = src;
         img.alt = altText;
+        try {
+            // Hint for preview: remember the local filename if provided
+            if (altText && /\.[a-z0-9]{2,4}$/i.test(String(altText))) {
+                img.setAttribute('data-local-filename', String(altText));
+            }
+        } catch (_) {}
         
         // Apply default image styles
         img.style.cssText = 'max-width: 100%; height: auto; margin: 10px 0; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.1);';
@@ -3918,17 +4529,37 @@ class NewsletterEditor {
             line-height: 1;
             box-shadow: 0 2px 4px rgba(0,0,0,0.3);
         `;
+
+        // Clear default gallery title on first focus/click (same behavior as two-column)
+        try {
+            const h3 = gallerySection.querySelector('.gallery-title[contenteditable]');
+            if (h3) {
+                const clear = () => {
+                    try {
+                        if (h3.dataset.cleared) return;
+                        if ((h3.textContent || '').trim() !== "Galerie d'images") return;
+                        h3.innerHTML = '<br>';
+                        h3.dataset.cleared = '1';
+                        const range = document.createRange();
+                        range.selectNodeContents(h3);
+                        range.collapse(true);
+                        const sel = window.getSelection();
+                        sel.removeAllRanges();
+                        sel.addRange(range);
+                        try { h3.focus(); } catch (_) {}
+                    } catch (_) {}
+                };
+                h3.addEventListener('focus', clear);
+                h3.addEventListener('click', clear);
+            }
+        } catch (_) { /* no-op */ }
         
         // Add delete button click event
         deleteBtn.addEventListener('click', (e) => {
             e.preventDefault();
             e.stopPropagation();
             if (confirm('Êtes-vous sûr de vouloir supprimer cette image ?')) {
-                wrapper.remove();
-                this.saveState();
-                this.updateLastModified();
-                this.autoSaveToLocalStorage();
-                this.lastAction = 'Image supprimée';
+                this.deleteImageWrapperSafe(wrapper);
             }
         });
         
@@ -3961,12 +4592,9 @@ class NewsletterEditor {
         wrapper.addEventListener('keydown', (e) => {
             if (e.key === 'Delete' || e.key === 'Backspace') {
                 e.preventDefault();
+                e.stopPropagation();
                 if (confirm('Êtes-vous sûr de vouloir supprimer cette image ?')) {
-                    wrapper.remove();
-                    this.saveState();
-                    this.updateLastModified();
-                    this.autoSaveToLocalStorage();
-                    this.lastAction = 'Image supprimée';
+                    this.deleteImageWrapperSafe(wrapper);
                 }
             }
         });
@@ -3989,23 +4617,132 @@ class NewsletterEditor {
             const videoId = this.extractVimeoId(url);
             embedCode = `<iframe src="https://player.vimeo.com/video/${videoId}" frameborder="0" allowfullscreen style="width:70%; margin: 10px auto; display:block; height:auto; aspect-ratio:16/9;"></iframe>`;
         } else {
-            embedCode = `<video controls style="max-width: 100%; margin: 10px 0;"><source src="${url}" type="video/mp4">Votre navigateur ne supporte pas la vidéo.</video>`;
+            // Generic direct video URL (mp4/webm/ogg)
+            const typeGuess = url.toLowerCase().endsWith('.webm') ? 'video/webm' : (url.toLowerCase().endsWith('.ogv') || url.toLowerCase().endsWith('.ogg')) ? 'video/ogg' : 'video/mp4';
+            embedCode = `<video controls style="max-width: 100%; margin: 10px 0;"><source src="${url}" type="${typeGuess}">Votre navigateur ne supporte pas la vidéo.</video>`;
         }
         
         this.insertHTMLAtCursor(embedCode);
         this.saveState();
         this.lastAction = 'Vidéo insérée';
+
+        // If we inserted a <video> (not iframe), try to capture a poster immediately (can be disabled)
+        if (!window.__disableVideoPoster) {
+            try {
+                const host = document.getElementById('editableContent');
+                const vids = host ? host.querySelectorAll('video') : [];
+                const lastVideo = vids && vids[vids.length - 1];
+                if (lastVideo && !lastVideo.getAttribute('poster')) {
+                    const ensurePoster = async (v) => {
+                        try {
+                            const makePoster = () => {
+                                try {
+                                    const vw = v.videoWidth || 0, vh = v.videoHeight || 0;
+                                    if (!vw || !vh) return '';
+                                    const w = 800, h = Math.max(1, Math.round(w / (vw / (vh || 1))));
+                                    const canvas = document.createElement('canvas');
+                                    canvas.width = w; canvas.height = h;
+                                    const ctx = canvas.getContext('2d');
+                                    ctx.drawImage(v, 0, 0, w, h);
+                                    return canvas.toDataURL('image/jpeg', 0.86);
+                                } catch { return ''; }
+                            };
+                            const drawNow = () => {
+                                const dataUrl = makePoster();
+                                if (dataUrl) v.setAttribute('poster', dataUrl);
+                            };
+                            if (lastVideo.readyState >= 2) {
+                                // Seek a little to avoid black frames
+                                try { v.currentTime = Math.min(0.1, (v.seekable && v.seekable.length ? v.seekable.end(0) : 0.1)); } catch {}
+                                v.addEventListener('seeked', drawNow, { once: true });
+                            } else {
+                                v.addEventListener('loadeddata', () => {
+                                    try { v.currentTime = Math.min(0.1, (v.seekable && v.seekable.length ? v.seekable.end(0) : 0.1)); } catch {}
+                                    v.addEventListener('seeked', drawNow, { once: true });
+                                }, { once: true });
+                            }
+                            // Safety timeout
+                            setTimeout(drawNow, 1500);
+                        } catch { /* ignore */ }
+                    };
+                    ensurePoster(lastVideo);
+                }
+            } catch (_) { /* ignore */ }
+        }
     }
 
     insertLocalVideo(src, name) {
         const video = document.createElement('video');
-        video.src = src;
         video.controls = true;
+        video.preload = 'auto';
         video.style.cssText = 'max-width: 100%; margin: 10px 0;';
-        
+        // Keep the original name so preview and editor can resolve to media/<name>
+        if (name) {
+            try { video.setAttribute('data-local-filename', String(name)); } catch (_) {}
+        }
+        // Build a persistent media source first so it survives refresh
+        const persistent = document.createElement('source');
+        const safeName = String(name || '').replace(/^[\\\/]+/, '');
+        const mediaPath = safeName ? ('media/' + encodeURIComponent(safeName)) : '';
+        if (mediaPath) persistent.src = mediaPath;
+        // Default type hint
+        try {
+            const lower = String(name || '').toLowerCase();
+            if (lower.endsWith('.mp4')) persistent.type = 'video/mp4';
+            else if (lower.endsWith('.webm')) persistent.type = 'video/webm';
+            else if (lower.endsWith('.ogg') || lower.endsWith('.ogv')) persistent.type = 'video/ogg';
+        } catch (_) {}
+        if (mediaPath) video.appendChild(persistent);
+
+        // Add the temporary blob source for immediate playback in the current session
+        const blobSource = document.createElement('source');
+        blobSource.src = src; // blob URL
+        if (name) {
+            try { blobSource.setAttribute('data-local-filename', String(name)); } catch (_) {}
+        }
+        try {
+            const lower = String(name || '').toLowerCase();
+            if (lower.endsWith('.mp4')) blobSource.type = 'video/mp4';
+            else if (lower.endsWith('.webm')) blobSource.type = 'video/webm';
+            else if (lower.endsWith('.ogg') || lower.endsWith('.ogv')) blobSource.type = 'video/ogg';
+        } catch (_) {}
+        video.appendChild(blobSource);
+
         this.insertElementAtCursor(video);
         this.saveState();
         this.lastAction = 'Vidéo insérée';
+
+        // Generate a poster immediately from the live video element (can be disabled)
+        if (!window.__disableVideoPoster) {
+            try {
+                const ensurePoster = (v) => {
+                    const draw = () => {
+                        try {
+                            const vw = v.videoWidth || 0, vh = v.videoHeight || 0;
+                            if (!vw || !vh) return;
+                            const w = 800, h = Math.max(1, Math.round(w / (vw / (vh || 1))));
+                            const canvas = document.createElement('canvas');
+                            canvas.width = w; canvas.height = h;
+                            const ctx = canvas.getContext('2d');
+                            ctx.drawImage(v, 0, 0, w, h);
+                            const dataUrl = canvas.toDataURL('image/jpeg', 0.86);
+                            if (dataUrl) v.setAttribute('poster', dataUrl);
+                        } catch { /* ignore */ }
+                    };
+                    if (v.readyState >= 2) {
+                        try { v.currentTime = Math.min(0.1, (v.seekable && v.seekable.length ? v.seekable.end(0) : 0.1)); } catch {}
+                        v.addEventListener('seeked', draw, { once: true });
+                    } else {
+                        v.addEventListener('loadeddata', () => {
+                            try { v.currentTime = Math.min(0.1, (v.seekable && v.seekable.length ? v.seekable.end(0) : 0.1)); } catch {}
+                            v.addEventListener('seeked', draw, { once: true });
+                        }, { once: true });
+                    }
+                    setTimeout(draw, 1500);
+                };
+                ensurePoster(video);
+            } catch (_) { /* ignore */ }
+        }
     }
 
     // Normalize all embedded videos/iframes to be 70% width, centered, with proper height
@@ -4050,13 +4787,39 @@ class NewsletterEditor {
             const table = document.createElement('table');
             table.style.cssText = 'width: 100%; border-collapse: collapse; margin: 20px 0;';
             
+            // Local helper: clear default cell label on first focus/click
+            const attachCellClear = (cell, expectedText) => {
+                const clear = () => {
+                    try {
+                        if (cell.dataset.cleared) return;
+                        const current = (cell.innerText || cell.textContent || '').trim();
+                        if (current !== expectedText) return;
+                        // Preserve formatting context
+                        cell.innerHTML = '<br>';
+                        cell.dataset.cleared = '1';
+                        const range = document.createRange();
+                        range.selectNodeContents(cell);
+                        range.collapse(true);
+                        const sel = window.getSelection();
+                        sel.removeAllRanges();
+                        sel.addRange(range);
+                        try { cell.focus(); } catch (_) {}
+                    } catch (_) { /* no-op */ }
+                };
+                cell.addEventListener('focus', clear);
+                cell.addEventListener('click', clear);
+            };
+            
             for (let i = 0; i < parseInt(rows); i++) {
                 const row = document.createElement('tr');
                 for (let j = 0; j < parseInt(cols); j++) {
                     const cell = document.createElement(i === 0 ? 'th' : 'td');
                     cell.contentEditable = true;
                     cell.style.cssText = 'border: 1px solid #ddd; padding: 8px; text-align: left;';
-                    cell.textContent = i === 0 ? `En-tête ${j + 1}` : `Cellule ${i},${j + 1}`;
+                    const defaultLabel = i === 0 ? `En-tête ${j + 1}` : `Cellule ${i},${j + 1}`;
+                    cell.textContent = defaultLabel;
+                    // Attach clear-on-first-focus/click like other sections
+                    attachCellClear(cell, defaultLabel);
                     row.appendChild(cell);
                 }
                 table.appendChild(row);
@@ -4090,6 +4853,53 @@ class NewsletterEditor {
                 <p contenteditable="true" style="color: #888; font-size: 14px;">Publié le: <span style="font-weight: bold;">${new Date().toLocaleDateString('fr-FR')}</span></p>
             </div>
         `;
+
+        // Apply two-column style pretext clearing to Article default texts
+        try {
+            const clearOnFocus = (el, isDefault) => {
+                const clear = () => {
+                    try {
+                        if (el.dataset.cleared) return;
+                        if (!isDefault()) return;
+                        // Clear content but keep block/format context
+                        if (el.tagName === 'P' || el.tagName === 'H1' || el.tagName === 'H2' || el.tagName === 'H3') {
+                            el.innerHTML = '<br>';
+                        } else {
+                            el.textContent = '';
+                        }
+                        el.dataset.cleared = '1';
+                        // Place caret at start
+                        const range = document.createRange();
+                        range.selectNodeContents(el);
+                        range.collapse(true);
+                        const sel = window.getSelection();
+                        sel.removeAllRanges();
+                        sel.addRange(range);
+                        try { el.focus(); } catch (_) {}
+                    } catch (_) { /* no-op */ }
+                };
+                el.addEventListener('focus', clear);
+                el.addEventListener('click', clear);
+            };
+
+            const titleEl = articleSection.querySelector('h2[contenteditable]');
+            if (titleEl) clearOnFocus(titleEl, () => (titleEl.textContent || '').trim() === "Titre de l'article");
+
+            const pEls = articleSection.querySelectorAll('.article-content p[contenteditable]');
+            const defaults = [
+                'Cliquez ici pour écrire le contenu de votre article. Vous pouvez ajouter plusieurs paragraphes, des images et du formatage.',
+                "Deuxième paragraphe de votre article. Continuez à développer votre contenu ici."
+            ];
+            pEls.forEach((p, idx) => {
+                const expected = defaults[idx] || '';
+                clearOnFocus(p, () => (p.textContent || '').trim() === expected);
+            });
+
+            const authorEl = articleSection.querySelector('.article-meta span[contenteditable]:nth-child(1)');
+            if (authorEl) clearOnFocus(authorEl, () => (authorEl.textContent || '').trim().startsWith('Par: '));
+            const catEl = articleSection.querySelector('.article-meta span[contenteditable]:nth-child(3)');
+            if (catEl) clearOnFocus(catEl, () => (catEl.textContent || '').trim().startsWith('Catégorie: '));
+        } catch (_) { /* no-op */ }
         
         this.insertElementAtCursor(articleSection);
         this.saveState();
@@ -4412,6 +5222,52 @@ class NewsletterEditor {
                 <p contenteditable="true" style="color: rgba(255,255,255,0.9); font-size: 16px;">— Conditions</p>
             </footer>
         `;
+
+        // Clear default quote text and footer label on first focus/click
+        try {
+            const q = quoteSection.querySelector('blockquote p[contenteditable]');
+            if (q) {
+                const qDefault = "Mettez en avant votre promotion ici. Décrivez l'offre, les dates et les conditions principales.";
+                const clearQ = () => {
+                    try {
+                        if (q.dataset.cleared) return;
+                        if ((q.textContent || '').trim() !== qDefault) return;
+                        q.innerHTML = '<br>';
+                        q.dataset.cleared = '1';
+                        const range = document.createRange();
+                        range.selectNodeContents(q);
+                        range.collapse(true);
+                        const sel = window.getSelection();
+                        sel.removeAllRanges();
+                        sel.addRange(range);
+                        try { q.focus(); } catch (_) {}
+                    } catch (_) {}
+                };
+                q.addEventListener('focus', clearQ);
+                q.addEventListener('click', clearQ);
+            }
+
+            const foot = quoteSection.querySelector('footer p[contenteditable]');
+            if (foot) {
+                const clearF = () => {
+                    try {
+                        if (foot.dataset.cleared) return;
+                        if ((foot.textContent || '').trim() !== '— Conditions') return;
+                        foot.innerHTML = '<br>';
+                        foot.dataset.cleared = '1';
+                        const range = document.createRange();
+                        range.selectNodeContents(foot);
+                        range.collapse(true);
+                        const sel = window.getSelection();
+                        sel.removeAllRanges();
+                        sel.addRange(range);
+                        try { foot.focus(); } catch (_) {}
+                    } catch (_) {}
+                };
+                foot.addEventListener('focus', clearF);
+                foot.addEventListener('click', clearF);
+            }
+        } catch (_) { /* no-op */ }
         
         this.insertElementAtCursor(quoteSection);
         this.saveState();
@@ -4427,8 +5283,42 @@ class NewsletterEditor {
         ctaSection.innerHTML = `
             <h3 contenteditable="true" style="color: white; margin: 0 0 15px 0; font-size: 28px; font-weight: bold;">Annonce</h3>
             <p contenteditable="true" style="color: rgba(255,255,255,0.9); font-size: 18px; margin-bottom: 25px; line-height: 1.6;">Publiez ici une annonce importante. Modifiez ce texte selon votre besoin.</p>
-            <a href="inscription.html" class="webinar-button" style="display: inline-block !important; background: white !important; color: #ee5a24 !important; padding: 15px 30px !important; border-radius: 50px !important; text-decoration: none !important; font-weight: bold !important; font-size: 16px !important; transition: transform 0.3s ease !important; box-shadow: 0 4px 15px rgba(0,0,0,0.2) !important; border: none !important;">En savoir plus</a>
+            <span class="webinar-button" contenteditable="true" style="display: inline-block !important; background: white !important; color: #ee5a24 !important; padding: 15px 30px !important; border-radius: 50px !important; text-decoration: none !important; font-weight: bold !important; font-size: 16px !important; transition: transform 0.3s ease !important; box-shadow: 0 4px 15px rgba(0,0,0,0.2) !important; border: none !important; white-space: normal !important; word-break: break-word !important; max-width: 100% !important; text-align: center !important;">Bouton</span>
         `;
+
+        // Apply two-column style pretext clearing to CTA default texts
+        try {
+            const clearOnFocus = (el, isDefault) => {
+                const clear = () => {
+                    try {
+                        if (el.dataset.cleared) return;
+                        if (!isDefault()) return;
+                        if (el.tagName === 'P' || el.tagName === 'H1' || el.tagName === 'H2' || el.tagName === 'H3') {
+                            el.innerHTML = '<br>';
+                        } else {
+                            el.textContent = '';
+                        }
+                        el.dataset.cleared = '1';
+                        const range = document.createRange();
+                        range.selectNodeContents(el);
+                        range.collapse(true);
+                        const sel = window.getSelection();
+                        sel.removeAllRanges();
+                        sel.addRange(range);
+                        try { el.focus(); } catch (_) {}
+                    } catch (_) { /* no-op */ }
+                };
+                el.addEventListener('focus', clear);
+                el.addEventListener('click', clear);
+            };
+
+            const h3 = ctaSection.querySelector('h3[contenteditable]');
+            if (h3) clearOnFocus(h3, () => (h3.textContent || '').trim() === 'Annonce');
+            const p = ctaSection.querySelector('p[contenteditable]');
+            if (p) clearOnFocus(p, () => (p.textContent || '').trim().startsWith('Publiez ici'));
+            const btn = ctaSection.querySelector('.webinar-button[contenteditable]');
+            if (btn) clearOnFocus(btn, () => (btn.textContent || '').trim() === 'Bouton');
+        } catch (_) { /* no-op */ }
         
         this.insertElementAtCursor(ctaSection);
         this.saveState();
@@ -4455,15 +5345,45 @@ class NewsletterEditor {
                 <div style="text-align: center; padding: 20px;">
                     <i class="fas fa-phone" style="font-size: 24px; color: #28a745; margin-bottom: 10px;"></i>
                     <h4 style="margin: 0 0 5px 0; color: #333;">Téléphone</h4>
-                    <p contenteditable="true" style="margin: 0; color: #666;">+33 1 23 45 67 89</p>
+                    <p contenteditable="true" style="margin: 0; color: #666;">+33 169852600</p>
                 </div>
                 <div style="text-align: center; padding: 20px;">
                     <i class="fas fa-map-marker-alt" style="font-size: 24px; color: #dc3545; margin-bottom: 10px;"></i>
                     <h4 style="margin: 0 0 5px 0; color: #333;">Adresse</h4>
-                    <p contenteditable="true" style="margin: 0; color: #666;">123 Rue Exemple<br>75000 Paris, France</p>
+                    <p contenteditable="true" style="margin: 0; color: #666;">14 mail du Commandant Cousteau 91300 Massy, France.</p>
                 </div>
             </div>
         `;
+
+        // Clear default contact texts and heading on first focus/click
+        try {
+            const clearOnFocus = (el, isDefault) => {
+                const clear = () => {
+                    try {
+                        if (el.dataset.cleared) return;
+                        if (!isDefault()) return;
+                        el.innerHTML = '<br>';
+                        el.dataset.cleared = '1';
+                        const range = document.createRange();
+                        range.selectNodeContents(el);
+                        range.collapse(true);
+                        const sel = window.getSelection();
+                        sel.removeAllRanges();
+                        sel.addRange(range);
+                        try { el.focus(); } catch (_) {}
+                    } catch (_) {}
+                };
+                el.addEventListener('focus', clear);
+                el.addEventListener('click', clear);
+            };
+
+            const email = contactSection.querySelector('div:nth-of-type(1) p[contenteditable]');
+            if (email) clearOnFocus(email, () => (email.textContent || '').trim() === 'contact@exemple.com');
+            const phone = contactSection.querySelector('div:nth-of-type(2) p[contenteditable]');
+            // Phone: keep as real content, do not auto-clear
+            const addr = contactSection.querySelector('div:nth-of-type(3) p[contenteditable]');
+            // Address: keep as real content, do not auto-clear
+        } catch (_) { /* no-op */ }
         
         this.insertElementAtCursor(contactSection);
         this.saveState();
@@ -4729,6 +5649,76 @@ class NewsletterEditor {
             tempDiv.innerHTML = content;
             console.log('Content extracted for saving');
             
+            // Auto-generate poster images for local videos (blob or file) so final HTML has a thumbnail
+            // We capture from the live video elements in the editor, then set 'poster' on the temp copy
+            try {
+                const editableEl = editableContent;
+                const liveVideos = Array.from(editableEl.querySelectorAll('video'));
+                const tempVideos = Array.from(tempDiv.querySelectorAll('video'));
+
+                async function captureFrameFromLiveVideo(videoEl, seekTime = 0.1, targetWidth = 800) {
+                    return new Promise((resolve) => {
+                        try {
+                            const onError = () => resolve('');
+                            const cleanup = () => {
+                                videoEl.removeEventListener('error', onError);
+                                videoEl.removeEventListener('loadeddata', onLoaded);
+                                videoEl.removeEventListener('seeked', onSeeked);
+                            };
+                            const draw = () => {
+                                try {
+                                    const vw = videoEl.videoWidth || 0;
+                                    const vh = videoEl.videoHeight || 0;
+                                    if (!vw || !vh) { resolve(''); return; }
+                                    const ratio = vw / vh;
+                                    const w = targetWidth;
+                                    const h = Math.max(1, Math.round(w / (ratio || 1)));
+                                    const canvas = document.createElement('canvas');
+                                    canvas.width = w; canvas.height = h;
+                                    const ctx = canvas.getContext('2d');
+                                    ctx.drawImage(videoEl, 0, 0, w, h);
+                                    const dataUrl = canvas.toDataURL('image/jpeg', 0.86);
+                                    resolve(dataUrl || '');
+                                } catch { resolve(''); }
+                            };
+                            const onSeeked = () => { cleanup(); draw(); };
+                            const onLoaded = () => {
+                                try {
+                                    // Seek slightly into the video to avoid black frame
+                                    if (!isNaN(seekTime) && videoEl.seekable && videoEl.seekable.length > 0) {
+                                        try { videoEl.currentTime = Math.min(seekTime, videoEl.seekable.end(0) || seekTime); } catch {}
+                                        videoEl.addEventListener('seeked', onSeeked, { once: true });
+                                    } else {
+                                        cleanup(); draw();
+                                    }
+                                } catch { cleanup(); resolve(''); }
+                            };
+                            videoEl.addEventListener('error', onError, { once: true });
+                            if (videoEl.readyState >= 2) { onLoaded(); }
+                            else { videoEl.addEventListener('loadeddata', onLoaded, { once: true }); }
+                            setTimeout(() => { cleanup(); resolve(''); }, 2000);
+                        } catch { resolve(''); }
+                    });
+                }
+
+                for (let i = 0; i < liveVideos.length; i++) {
+                    const liveV = liveVideos[i];
+                    const tempV = tempVideos[i];
+                    if (!tempV) continue;
+                    // Skip if poster already present
+                    if (tempV.hasAttribute('poster') && (tempV.getAttribute('poster') || '').trim().length > 0) continue;
+                    // Try to capture a frame from the live element
+                    try {
+                        const posterUrl = await captureFrameFromLiveVideo(liveV);
+                        if (posterUrl) {
+                            tempV.setAttribute('poster', posterUrl);
+                        }
+                    } catch (_) { /* ignore and continue */ }
+                }
+            } catch (e) {
+                console.debug('Video poster auto-generation skipped:', e);
+            }
+            
             // Remove all editor-specific elements before saving
             const elementsToRemove = [
                 '.add-image-placeholder',
@@ -4741,6 +5731,36 @@ class NewsletterEditor {
             elementsToRemove.forEach(selector => {
                 tempDiv.querySelectorAll(selector).forEach(el => el.remove());
             });
+
+            // Extra cleanup for gallery editor controls/placeholders that might remain in content
+            try {
+                // Remove common gallery control wrappers or inputs
+                const extraSelectors = [
+                    '.gallery-upload',
+                    '.gallery-controls',
+                    '.gallery-editor-only',
+                    '.gallery-actions',
+                    'input[type="file"]'
+                ];
+                extraSelectors.forEach(sel => tempDiv.querySelectorAll(sel).forEach(el => el.remove()));
+
+                // Remove buttons by visible label to be robust even without specific classes
+                const buttonTextsToRemove = [
+                    'Ajouter une image',
+                    'Modifier la galerie',
+                    'Ajouter plus d\'images'
+                ];
+                tempDiv.querySelectorAll('button, a').forEach(el => {
+                    const txt = (el.innerText || el.textContent || '').trim().toLowerCase();
+                    if (buttonTextsToRemove.some(t => txt.includes(t.toLowerCase()))) {
+                        el.remove();
+                    }
+                });
+
+                // Remove obvious placeholder tiles inside galleries
+                tempDiv.querySelectorAll('[class*="placeholder"]').forEach(el => el.remove());
+                tempDiv.querySelectorAll('[data-editor-only], [data-placeholder], [data-editable-control]').forEach(el => el.remove());
+            } catch (_) { /* best-effort cleanup */ }
             
             // Remove ALL contenteditable attributes to make content completely non-editable
             tempDiv.querySelectorAll('[contenteditable]').forEach(el => {
@@ -4926,8 +5946,29 @@ class NewsletterEditor {
             // Generate unique ID
             const id = Date.now().toString();
 
-            // By default, keep the ORIGINAL content so restoring from history is lossless
-            let contentForHistory = content || '';
+            // Build a possibly-sanitized copy for persistence to avoid quota issues
+            const originalContent = content || '';
+            let contentForHistory = originalContent;
+            try {
+                const isHeavy = originalContent.length > 300 * 1024 || /\ssrc=\"(?:data:|blob:)/i.test(originalContent);
+                if (isHeavy) {
+                    let slim = originalContent
+                        .replace(/\s+src=\"data:[^\"]+\"/gi, '')
+                        .replace(/\s+src=\"blob:[^\"]+\"/gi, '')
+                        .replace(/<source([^>]*)src=\"[^\"]+\"([^>]*)>/gi, '<source$1$2>')
+                        .replace(/<video[\s\S]*?<\/video>/gi, '<div class="video-placeholder" data-omitted="true"></div>');
+                    const MAX_BYTES = 300 * 1024; // 300KB per entry
+                    if (slim.length > MAX_BYTES) slim = slim.slice(0, MAX_BYTES);
+                    contentForHistory = slim;
+                }
+            } catch (_) { /* keep original if sanitize fails */ }
+
+            // Persist the full, unsanitized content separately in IndexedDB (non-blocking)
+            try {
+                if (typeof saveFullContentToIDB === 'function') {
+                    saveFullContentToIDB(id, originalContent);
+                }
+            } catch (_) { /* ignore */ }
 
             // Compute preview from the original HTML
             const previewText = (content || '').replace(/<[^>]*>?/gm, '').substring(0, 150) + '...';
@@ -4992,16 +6033,8 @@ class NewsletterEditor {
                         // Last resort: create a sanitized "slim" copy only for storage purposes
                         let slim = { ...historyItem };
                         try {
-                            // Start from original content and sanitize heavy sources
-                            let slimContent = (content || '');
-                            // Remove data: URIs (images/video/audio) and blob: URIs
-                            slimContent = slimContent.replace(/\s+src=\"data:[^\"]+\"/gi, '');
-                            slimContent = slimContent.replace(/\s+src=\"blob:[^\"]+\"/gi, '');
-                            // Remove <source src="..."> attributes
-                            slimContent = slimContent.replace(/<source([^>]*)src=\"[^\"]+\"([^>]*)>/gi, '<source$1$2>');
-                            // Collapse heavy <video> blocks
-                            slimContent = slimContent.replace(/<video[\s\S]*?<\/video>/gi, '<div class="video-placeholder" data-omitted="true"></div>');
-                            // Guard overall size
+                            // Start from already sanitized-or-original contentForHistory, guard size
+                            let slimContent = contentForHistory;
                             slimContent = slimContent.slice(0, 200000); // ~200KB
                             slim.content = slimContent;
                         } catch(_) { slim.content = ''; }
@@ -5010,6 +6043,10 @@ class NewsletterEditor {
                         } catch(_) {
                             // Give up but avoid throwing; history won't be updated this round
                             console.warn('History not saved due to storage quota, even after slimming');
+                            try {
+                                sessionStorage.setItem('newsletterHistoryFallback', JSON.stringify([slim]));
+                            } catch (_) {}
+                            try { window.__historyBuffer = [slim]; } catch (_) {}
                         }
                     }
                 } else {
@@ -5393,3 +6430,48 @@ document.addEventListener('DOMContentLoaded', () => {
     // Expose globally for inline modal to access lastAction and saveToHistory
     try { window.editor = editor; } catch (_) {}
 });
+
+// --- IndexedDB helpers for full snapshot HTML (preserves media src) ---
+function openHistoryDB() {
+    return new Promise((resolve, reject) => {
+        try {
+            const req = indexedDB.open('NewsletterDB', 1);
+            req.onupgradeneeded = () => {
+                const db = req.result;
+                if (!db.objectStoreNames.contains('historyFull')) {
+                    db.createObjectStore('historyFull', { keyPath: 'id' });
+                }
+            };
+            req.onsuccess = () => resolve(req.result);
+            req.onerror = () => reject(req.error);
+        } catch (e) { reject(e); }
+    });
+}
+
+function saveFullContentToIDB(id, html) {
+    openHistoryDB()
+        .then(db => {
+            const tx = db.transaction('historyFull', 'readwrite');
+            tx.objectStore('historyFull').put({ id: String(id), content: String(html || '') });
+            tx.oncomplete = () => { try { db.close(); } catch (_) {} };
+            tx.onerror = () => { try { db.close(); } catch (_) {} };
+        })
+        .catch(() => {});
+}
+
+function getFullContentFromIDB(id) {
+    return openHistoryDB()
+        .then(db => new Promise(resolve => {
+            const tx = db.transaction('historyFull', 'readonly');
+            const req = tx.objectStore('historyFull').get(String(id));
+            req.onsuccess = () => {
+                try { db.close(); } catch (_) {}
+                resolve((req.result && req.result.content) || '');
+            };
+            req.onerror = () => {
+                try { db.close(); } catch (_) {}
+                resolve('');
+            };
+        }))
+        .catch(() => '');
+}
