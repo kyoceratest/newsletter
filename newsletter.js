@@ -132,12 +132,19 @@ document.addEventListener('DOMContentLoaded', function () {
     function buildArticleCandidates() {
         const paths = [];
         for (const cat of ARTICLE_CATEGORIES) {
-            for (let i = 1; i <= 5; i++) {
-                paths.push(`TypeNews/${cat}/article${i}.html`);
+            if (cat === 'edito') {
+                // In this repo, TypeNews/edito/article1.html does not exist; avoid 404s
+                for (let i = 2; i <= 5; i++) {
+                    paths.push(`TypeNews/${cat}/article${i}.html`);
+                }
+                // Include the default video page present in edito
+                paths.push('TypeNews/edito/video1.html');
+            } else {
+                for (let i = 1; i <= 5; i++) {
+                    paths.push(`TypeNews/${cat}/article${i}.html`);
+                }
             }
         }
-        // Also include the current default video in edito so it appears in the list
-        paths.push('TypeNews/edito/video1.html');
         return paths;
     }
 
@@ -241,11 +248,12 @@ document.addEventListener('DOMContentLoaded', function () {
             let resolved = articleParam;
             try {
                 if (!/\//.test(articleParam)) {
-                    // Expect pattern: <filename>_<folder>
-                    const m = articleParam.match(/^\s*([A-Za-z0-9_-]+)_([A-Za-z0-9_-]+)\s*$/);
-                    if (m) {
-                        const filename = m[1];
-                        const folder = m[2];
+                    // Expect pattern: <filename>_<folder...>
+                    // Split at the FIRST underscore so folders like "com_actus" work
+                    const idx = articleParam.indexOf('_');
+                    if (idx > 0 && idx < articleParam.length - 1) {
+                        const filename = articleParam.slice(0, idx).trim();
+                        const folder = articleParam.slice(idx + 1).trim();
                         // Ensure .html extension on filename
                         const file = /\.html?$/i.test(filename) ? filename : `${filename}.html`;
                         resolved = `TypeNews/${folder}/${file}`;
